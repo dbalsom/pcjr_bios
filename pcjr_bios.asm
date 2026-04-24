@@ -1132,3 +1132,726 @@
 ; --------------------------------------------------------------------------------------------------
 ; A-14  
 ; --------------------------------------------------------------------------------------------------
+039E                            SECOND: 
+039E  22 D8                             AND     BL,AL               ; CHECK FOR ALL BITS OFF
+03A0  EC                                IN      AL,DX               ; READ MSB
+03A1  22 F8                             AND     BH,AL               ; TURN OFF BITS
+03A3  0B DB                             OR      BX,BX               ; ALL OFF?
+03A5                            TST_CMP: 
+03A5  74 07                             JE      CHK_END             ; YES - SEE IF DONE
+03A7  E2 DC                             LOOP    TST_BITS            ; KEEP TRYING
+03A9  59                                POP     CX                  ; RESTORE OUTER LOOP COUNTER
+03AA  E2 D5                             LOOP    INNER_LOOP          ; TRY AGAIN
+03AC  F9                                STC                         ; ALL TRIES EXHAUSTED - FAILED TEST
+03AD  C3                                RET
+03AE                            CHK_END: 
+03AE  59                                POP     CX                  ; POP FORMER OUTER LOOP COUNTER
+03AF  46                                INC     SI
+03B0  83 FE 02                          CMP     SI,2
+03B3  75 C9                             JNE     OUTER_LOOP          ; CHECK FOR ALL BITS TO GO OFF
+03B5  F8                                CLC                         ; TIMER BITS ARE WORKING PROPERLY
+03B6  C3                                RET
+03B7                            BITS_ON_OFF     ENDP
+                                POD13_END:
+                                ;------------------------------------------------------------
+                                ;                       CRT ATTACHMENT TEST
+                                ;
+                                ; 1. INIT CRT TO 40X25 - BW
+                                ; 2. CHECK FOR VERTICAL AND VIDEO ENABLES, AND CHECK
+                                ;    TIMING OF SAME
+                                ; 3. CHECK VERTICAL INTERRUPT
+                                ; 4. CHECK RED, BLUE, GREEN, AND INTENSIFY DOTS
+                                ; 5. INIT TO 40X25 - COLOR
+                                ;   MFG. ERROR CODE 09XX (XX-SEE COMMENTS IN CODE)
+                                ;------------------------------------------------------------
+= A0AC                          MAVT            EQU     0A0ACH      ; MAXIMUM TIME FOR VERT/VERT
+                                                                    ; (NOMINAL + 10%)
+= C460                          MIVT            EQU     0C460H      ; MINIMUM TIME FOR VERT/VERT
+                                                                    ; (NOMINAL - 10%)
+                                ; NOMINAL TIME IS B286H FOR 60 hz.
+= 00C8                          EPF             EQU     200         ; NUMBER OF ENABLES PER FRAME
+03B7  E8 E6D8 R                         CALL    MFG_UP              ; MFG. CHECKPOINT= F5
+03BA  FA                                CLI
+03BB  B0 70                             MOV     AL,01110000B        ; SET TIMER 1 TO MODE 0
+03BD  E6 43                             OUT     TIM_CTL,AL
+03BF  B9 8000                           MOV     CX,8000H
+03C2  E2 FE                     Q1:     LOOP    Q1                  ; WAIT FOR MODE SET TO "TAKE"
+03C4  B0 00                             MOV     AL,00H
+03C6  E6 41                             OUT     TIMER+1,AL          ; SEND FIRST BYTE TO TIMER
+03C8  2B C0                             SUB     AX,AX               ; SET MODE 40X25 - BW
+03CA  CD 10                             INT     10H
+03CC  B8 0507                           MOV     AX,0507H            ; SET TO VIDEO PAGE 7
+03CF  CD 10                             INT     10H
+03D1  BA 03DA                           MOV     DX,03DAH            ; SET ADDRESSING TO VIDEO ARRAY
+03D4  2B C9                             SUB     CX,CX               ;
+                                ; LOOK FOR VERTICAL
+03D6  EC                        Q2:     IN      AL,DX               ; GET STATUS
+03D7  A8 08                             TEST    AL,00001000B        ; VERTICAL THERE YET?
+03D9  75 06                             JNE     Q3                  ; CONTINUE IF IT IS
+03DB  E2 F9                             LOOP    Q2                  ; KEEP LOOKING TILL COUNT EXHAUSTED
+03DD  B3 00                             MOV     BL,00               ;
+03DF  EB 4C                             JMP     SHORT Q115          ; NO VERTICAL = ERROR 0900
+                                ; GOT VERTICAL - START TIMER
+03E1  32 C0                     Q3:     XOR     AL,AL               ;
+03E3  E6 41                             OUT     TIMER+1,AL          ; SEND 2ND BYTE TO TIMER TO START
+03E5  2B DB                             SUB     BX,BX               ; INIT. ENABLE COUNTER
+                                ; WAIT FOR VERTICAL TO GO AWAY
+03E7  33 C9                     Q4:     XOR     CX,CX
+03E9  EC                                IN      AL,DX               ; GET STATUS
+03EA  A8 08                             TEST    AL,00001000B        ; VERTICAL STILL THERE?
+03EC  74 06                             JZ      Q5                  ; CONTINUE IF IT'S GONE
+03EE  E2 F9                             LOOP    Q4                  ; KEEP LOOKING TILL COUNT EXHAUSTED
+03F0  B3 01                             MOV     BL,01H
+03F2  EB 39                             JMP     SHORT Q115          ; VERTICAL STUCK ON = ERROR 0901
+                                ; NOW START LOOKING FOR ENABLE TRANSITIONS
+03F4  2B C9                     Q5:     SUB     CX,CX
+03F6  EC                        Q6:     IN      AL,DX               ; GET STATUS
+03F7  A8 01                             TEST    AL,00000001B        ; ENABLE ON YET?
+03F9  75 0A                             JNE     Q7                  ; GO ON IF IT IS
+03FB  A8 08                             TEST    AL,00001000B        ; VERTICAL ON AGAIN?
+03FD  75 22                             JNE     Q11                 ; CONTINUE IF IT IS
+03FF  E2 F5                             LOOP    Q6                  ; KEEP LOOKING IF NOT
+0401  B3 02                             MOV     BL,02H
+0403  EB 28                             JMP     SHORT Q115          ; ENABLE STUCK OFF = ERROR 0902
+                                ; MAKE SURE VERTICAL WENT OFF WITH ENABLE GOING ON
+0405  A8 08                     Q7:     TEST    AL,00001000B        ; VERTICAL OFF?
+0407  74 04                             JZ      Q8                  ; GO ON IF IT IS
+0409  B3 03                             MOV     BL,03H
+040B  EB 20                             JMP     SHORT Q115          ; VERTICAL STUCK ON = ERROR 0903
+                                ; NOW WAIT FOR ENABLE TO GO OFF
+040D  2B C9                     Q8:     SUB     CX,CX
+040F  EC                        Q9:     IN      AL,DX               ; GET STATUS
+0410  A8 01                             TEST    AL,00000001B        ; ENABLE OFF YET?
+0412  74 06                             JZ      Q10                 ; PROCEED IF IT IS
+0414  E2 F9                             LOOP    Q9                  ; KEEP LOOKING IF NOT YET LOW
+0416  B3 04                             MOV     BL,04H
+0418  EB 13                             JMP     SHORT Q115          ; ENABLE STUCK ON = ERROR 0904
+                                ; ENABLE HAS TOGGLED, BUMP COUNTER AND TEST FOR NEXT VERTICAL
+041A  43                        Q10:    INC     BX                  ; BUMP ENABLE COUNTER
+041B  74 04                             JZ      Q11                 ; IF COUNTER WRAPS, ERROR
+                                ; DID ENABLE GO LOW BECAUSE OF
+041D  A8 08                             TEST    AL,00001000B        ; VERTICAL?
+041F  74 03                             JZ      Q5                  ; IF NOT, LOOK FOR ANOTHER ENABLE
+                                                                    ;   TOGGLE
+; --------------------------------------------------------------------------------------------------
+; A-15
+; --------------------------------------------------------------------------------------------------
+                                ; HAVE HAD COMPLETE VERTICAL-VERTICAL CYCLE, NOW TEST RESULTS
+0421  B0 40                     Q11:    MOV     AL,40H              ; LATCH TIMER1
+0423  E6 43                             OUT     TIM_CTL,AL          ;
+0425  81 FB 00C8                        CMP     BX,EPF              ; NUMBER OF ENABLES BETWEEN
+                                                                    ; VERTICALS O.K.?
+
+0429  74 04                             JE      Q12                 ;
+042B  B3 05                             MOV     BL,05H              ;
+042D  EB 74                     Q115:   JMP     SHORT Q22           ; WRONG # ENABLES = ERROR 0905
+042F  E4 41                     Q12:    IN      AL,TIMER+1          ; GET TIMER VALUE LOW
+0431  8A E0                             MOV     AH,AL               ; SAVE IT
+0433  90                                                            ;
+0434  E4 41                             IN      AL,TIMER+1          ; GET TIMER HIGH
+0436  86 E0                             XCHG    AH,AL               ;
+0438  FB                                STI                         ; INTERRUPTS BACK ON
+0439  90                                NOP                         ;
+043A  3D A0AC                           CMP     AX,MAVT             ;
+043D  7D 04                             JGE     Q13                 ;
+043F  B3 06                             MOV     BL,06H              ;
+0441  EB 60                             JMP     SHORT Q22           ; VERTICALS TOO FAR APART
+                                                                    ; = ERROR 0906
+
+0443  3D C460                   Q13:    CMP     AX,MIVT             ;
+0446  7E 04                             JLE     Q14                 ;
+0448  B3 07                             MOV     BL,07H              ;
+044A  EB 57                             JMP     SHORT Q22           ; VERTICALS TOO CLOSE TOGETHER
+                                                                    ; = ERROR 0907
+
+                                ; TIMINGS SEEM O.K., NOW CHECK VERTICAL INTERRUPT (LEVEL 5)
+044C  2B C9                     Q14:    SUB     CX,CX               ; SET TIMEOUT REG
+044E  E4 21                             IN      AL,INTA01           ;
+0450  24 DF                             AND     AL,11011111B        ; UNMASK INT. LEVEL 5
+0452  E6 21                             OUT     INTA01,AL           ;
+0454  20 06 0484 R                      AND     DATA_AREA[INTR_FLAG-DATA],AL
+0458  FB                                STI                         ; ENABLE INTS.
+0459  F6 06 0484 R 20           Q15:    TEST    DATA_AREA[INTR_FLAG-DATA],00100000B ; SEE IF INTR.
+                                                                    ; 5 HAPPENED YET
+045E  75 06                             JNZ     Q16                 ; GO ON IF IT DID
+0460  E2 F7                             LOOP    Q15                 ; KEEP LOOKING IF IT DIDN'T
+0462  B3 08                             MOV     BL,08H              ;
+0464  EB 3D                             JMP     SHORT Q22           ; NO VERTICAL INTERRUPT
+                                                                    ; = ERROR 0908
+
+0466  E4 21                     Q16:    IN      AL,INTA01           ; DISABLE INTERRUPTS FOR LEVEL 5
+0468  0C 20                             OR      AL,00100000B        ;
+046A  E6 21                             OUT     INTA01,AL           ;
+
+                                ; SEE IF RED, GREEN, BLUE AND INTENSIFY DOTS WORK
+                                ; FIRST, SET A LINE OF REVERSE VIDEO, INTENSIFIED BLANKS INTO VIDEO
+                                ; BUFFER
+046C  B8 09DB                           MOV     AX,09DBH            ; WRITE CHARS, BLOCKS
+046F  BB 077F                           MOV     BX,077FH            ; PAGE 7, REVERSE VIDEO,
+                                                                    ;     HIGH INTENSITY
+0472  B9 0028                           MOV     CX,40               ; 40 CHARACTERS
+0475  CD 10                             INT     10H                 ;
+0477  33 C0                             XOR     AX,AX               ; START WITH BLUE DOTS
+0479  2B C9                     Q17:    SUB     CX,CX               ;
+047B  EE                                OUT     DX,AL               ; SET VIDEO ARRAY ADDRESS FOR DOTS
+
+047C  EC                        Q18:    IN      AL,DX               ; GET STATUS
+047D  A8 10                             TEST    AL,00010000B        ; DOT THERE?
+047F  75 08                             JNZ     Q19                 ; GO LOOK FOR DOT TO TURN OFF
+0481  E2 F9                             LOOP    Q18                 ; CONTINUE TESTING FOR DOT ON
+0483  B3 10                             MOV     BL,10H              ;
+0485  0A DC                             OR      BL,AH               ; OR IN DOT BEING TESTED
+0487  EB 1A                             JMP     SHORT Q22           ; DOT NOT COMING ON = ERROR 091X
+                                                                    ; ( X=0, BLUE; X=1, GREEN;
+                                                                    ;   X=2, RED; X=3, INTENSITY)
+
+                                ; SEE IF DOT GOES OFF
+0489  2B C9                     Q19:    SUB     CX,CX               ;
+048B  EC                        Q20:    IN      AL,DX               ; GET STATUS
+048C  A8 10                             TEST    AL,00010000B        ; IS DOT STILL ON?
+048E  74 08                             JE      Q21                 ; GO ON IF DOT OFF
+0490  E2 F9                             LOOP    Q20                 ; ELSE, KEEP WAITING FOR DOT
+                                                                    ;     TO GO OFF
+0492  B3 20                             MOV     BL,20H              ;
+0494  0A DC                             OR      BL,AH               ; OR IN DOT BEING TESTED
+0496  EB 0B                             JMP     SHORT Q22           ; DOT STUCK ON = ERROR 092X
+                                                                    ; (X=0, BLUE; X=1, GREEN;
+                                                                    ;  X=2, RED; X=3, INTENSITY)
+
+                                ; ADJUST TO POINT TO NEXT DOT
+0498  FE C4                     Q21:    INC     AH                  ;
+049A  80 FC 04                          CMP     AH,4                ; ALL 4 DOTS DONE?
+049D  74 09                             JE      Q23                 ; GO END
+049F  8A C4                             MOV     AL,AH               ;
+04A1  EB D6                             JMP     Q17                 ; GO LOOK FOR ANOTHER DOT
+04A3  B7 09                     Q22:    MOV     BH,09H              ; SET MSB OF ERROR CODE
+04A5  E9 09BC R                         JMP     E_MSG               ;
+
+                                ; DONE WITH TEST RESET TO 40X25 - COLOR
+                                        ASSUME  DS:DATA
+04A8  E8 138B R                 Q23:    CALL    DDS                 ;
+04AB  B8 0001                           MOV     AX,0001H            ; INIT TO 40X25 - COLOR
+04AE  CD 10                             INT     10H                 ;
+04B0  B8 0507                           MOV     AX,0507H            ; SET TO VIDEO PAGE 7
+04B3  CD 10                             INT     10H                 ;
+04B5  81 3E 0072 R 1234                 CMP     RESET_FLAG,1234H    ; WARM START?
+04BB  74 03                             JE      Q24                 ; BYPASS PUTTING UP POWER-ON SCREEN
+04BD  E8 0C21 R                         CALL    PUT_LOGO            ; PUT LOGO ON SCREEN
+; --------------------------------------------------------------------------------------------------
+; A-16
+; --------------------------------------------------------------------------------------------------
+04C0  B0 76                     Q24:    MOV     AL,01110110B        ; RE-INIT TIMER 1
+04C2  E6 43                             OUT     TIM_CTL,AL          ;
+04C4  B0 00                             MOV     AL,00H
+04C6  E6 41                             OUT     TIMER+1,AL
+04C8  90                                NOP
+04C9  90                                NOP
+04CA  E6 41                             OUT     TIMER+1,AL
+
+                                        ASSUME  DS:ABSO
+04CC  E8 E6D8 R                         CALL    MFG_UP              ; MFG CHECKPOINT=F4
+04CF  33 C0                             XOR     AX,AX
+04D1  8E D8                             MOV     DS,AX
+04D3  C7 06 0008 R 0F78 R               MOV     NMI_PTR,OFFSET KBDNMI ; SET INTERRUPT VECTOR
+04D9  C7 06 0120 R F068 R               MOV     KEY62_PTR,OFFSET KEY_SCAN_SAVE ; SET VECTOR FOR
+                                                                    ; POD INT HANDLER
+04DF  0E                                PUSH    CS
+04E0  58                                POP     AX
+04E1  A3 0122 R                         MOV     KEY62_PTR+2,AX
+                                        ASSUME  DS:DATA
+04E4  E8 138B R                         CALL    DDS                 ; SET DATA SEGMENT
+04E7  BE 001E R                         MOV     SI,OFFSET KB_BUFFER ; SET KEYBOARD PARMS
+04EA  89 36 001A R                      MOV     BUFFER_HEAD,SI
+04EE  89 36 001C R                      MOV     BUFFER_TAIL,SI
+04F2  89 36 0080 R                      MOV     BUFFER_START,SI
+04F6  83 C6 20                          ADD     SI,32               ; SET DEFAULT BUFFER OF 32 BYTES
+04F9  89 36 0082 R                      MOV     BUFFER_END,SI
+04FD  E4 A0                             IN      AL,0A0H             ; CLEAR NMI F/F
+04FF  B0 80                             MOV     AL,80H              ; ENABLE NMI
+0501  E6 A0                             OUT     0A0H,AL             ;
+
+                                ; IF A KEY IS STUCK, THE BUFFER SHOULD FILL WITH THAT KEY'S CODE
+                                ; THIS WILL BE CHECKED LATER
+                                ;---------------------------------------------------------
+                                ;              MEMORY SIZE DETERMINE AND TEST
+                                ; THIS ROUTINE WILL DETERMINE HOW MUCH MEM
+                                ; IS ATTACHED TO THE SYSTEM (UP TO 640KB)
+                                ; AND SET "MEMORY_SIZE" AND "REAL_MEMORY"
+                                ; WORDS IN THE DATA AREA.
+                                ;
+                                ; AFTER THIS, MEMORY WILL BE EITHER TESTED
+                                ; OR CLEARED, DEPENDING ON THE CONTENTS OF
+                                ; "RESET_FLAG".
+                                ; MFG. ERROR CODES    -0AXX PLANAR BD ERROR
+                                ;                     -0BXX 64K CD ERROR
+                                ;                     -0CXX ERRORS IN BOTH
+                                ;                          ODD AND EVEN BYTES
+                                ;                          IN A 128K SYS
+                                ;                     -1YXX MEMORY ABOVE 128K
+                                ;                          Y=SEGMENT HAVING TROUBLE
+                                ;                          XX= ERROR BITS
+                                ;---------------------------------------------------------
+
+                                        ASSUME  DS:DATA
+0503  E8 E6D8 R                         CALL    MFG_UP              ; MFG CHECKPOINT=F3
+0506  BB 0040                           MOV     BX,64               ; START WITH BASE 64K
+0509  E4 62                             IN      AL,PORT_C           ; GET CONFIG BYTE
+050B  A8 08                             TEST    AL,00001000B        ; SEE IF 64K CARD INSTALLED
+050D  75 03                             JNE     Q25                 ; (BIT 4 WILL BE 0 IF CARD PLUGGED)
+050F  83 C3 40                          ADD     BX,64               ; ADD 64K
+0512  53                        Q25:    PUSH    BX                  ; SAVE K COUNT
+0513  83 EB 10                          SUB     BX,16               ; SUBTRACT 16K CRT REFRESH SPACE
+0516  89 1E 0013 R                      MOV     [MEMORY_SIZE],BX    ; LOAD "CONTIGUOUS MEMORY" WORD
+051A  5B                                POP     BX
+051B  BA 2000                           MOV     DX,2000H            ; SET POINTER TO JUST ABOVE 128K
+051E  2B FF                             SUB     DI,DI               ; SET DI TO POINT TO BEGINNING
+0520  B9 AA55                   Q26:    MOV     CX,0AA55H           ; LOAD DATA PATTERN
+0523  8E C2                             MOV     ES,DX               ; SET SEGMENT TO POINT TO MEMORY
+0525  26: 89 0D                         MOV     ES:[DI],CX          ; SPACE
+0528  B0 0F                             MOV     AL,0FH              ; SET DATA PATTERN TO MEMORY
+052A  26: 8B 05                         MOV     AX,ES:[DI]          ; SET AL TO ODD VALUE
+052D  33 C1                             XOR     AX,CX               ; GET DATA PATTERN BACK FROM MEM
+052F  75 0C                             JNZ     Q27                 ; SEE IF DATA MADE IT BACK
+                                ; NO? THEN END OF MEM HAS BEEN
+                                ; REACHED
+0531  81 C2 1000                        ADD     DX,1000H            ; POINT TO BEGINNING OF NEXT 64K
+0535  83 C3 40                          ADD     BX,64               ; ADJUST TOTAL MEM. COUNTER
+0538  80 FE A0                          CMP     DH,0A0H             ; PAST 640K YET?
+053B  75 E6                             JNE     Q26                 ; CHECK FOR ANOTHER BLOCK IF NOT
+053D  89 1E 0015 R              Q27:    MOV     [TRUE_MEM],BX       ; LOAD "TOTAL MEMORY" WORD
+                                ; SIZE HAS BEEN DETERMINED, NOW TEST OR CLEAR ALL OF MEMORY
+0541  B8 0004                           MOV     AX,4                ; 4 KB KNOWN OK AT THIS POINT
+0544  E8 05BC R                         CALL    Q35
+0547  BA 0080                           MOV     DX,0080H            ; SET POINTER TO JUST ABOVE
+                                                                    ; LOWER 2K
+054A  B9 7800                           MOV     CX,7800H            ; TEST 30K WORDS (60KB)
+054D  8E C2                     Q28:    MOV     ES,DX
+054F  51                                PUSH    CX
+0550  53                                PUSH    BX
+0551  50                                PUSH    AX
+0552  E8 0B59 R                         CALL    PODSTG              ; TEST OR FILL MEM
+0555  74 03                             JZ      Q29                 ; JUMP IF ERROR
+0557  E9 0603 R                         JMP     Q39
+055A  58                        Q29:    POP     AX
+055B  5B                                POP     BX
+055C  59                                POP     CX
+055D  80 FD 78                          CMP     CH,78H              ; WAS THIS A 60 K PASS
+0560  9C                                PUSHF
+0561  05 003C                           ADD     AX,60               ; BUMP GOOD STORAGE BY 60 KB
+0564  9D                                POPF
+0565  74 03                             JE      Q30
+0567  05 0002                           ADD     AX,2                ; ADD 2 FOR A 62K PASS
+056A  E8 05BC R                 Q30:    CALL    Q35
+056D  3B C3                             CMP     AX,BX               ; ARE WE DONE YET?
+056F  75 03                             JNE     Q31
+0571  E9 0640 R                         JMP     Q43                 ; ALL DONE, IF SO
+; --------------------------------------------------------------------------------------------------
+; A-17
+; --------------------------------------------------------------------------------------------------
+0574  3D 0080                   Q31:    CMP     AX,128              ; DONE WITH 1ST 128K?
+0577  74 1E                             JE      Q32                 ; GO FINISH REST OF MEM.
+0579  BA 0F80                           MOV     DX,0F80H            ; SET POINTER TO FINISH 1ST 64 KB
+057C  B9 0400                           MOV     CX,0400H
+057F  8E C2                             MOV     ES,DX
+0581  50                                PUSH    AX
+0582  53                                PUSH    BX
+0583  52                                PUSH    DX
+0584  E8 0B59 R                         CALL    PODSTG              ; GO TEST/FILL
+0587  75 7A                             JNZ     Q39                 ;
+0589  5A                                POP     DX
+058A  5B                                POP     BX
+058B  58                                POP     AX
+058C  05 0002                           ADD     AX,2                ; UPDATE GOOD COUNT
+058F  BA 1000                           MOV     DX,1000H            ; SET POINTER TO 2ND 64K BLOCK
+0592  B9 7C00                           MOV     CX,7C00H            ; 62K WORTH
+0595  EB B6                             JMP     Q28                 ; GO TEST IT
+0597  BA 2000                   Q32:    MOV     DX,2000H            ; POINT TO BLOCK ABOVE 128K
+059A  3B D8                     Q33:    CMP     BX,AX               ; COMPARE GOOD MEM TO TOTAL MEM
+059C  75 03                             JNE     Q34
+059E  E9 0640 R                         JMP     Q43                 ; EXIT IF ALL DONE
+05A1  B9 4000                   Q34:    MOV     CX,4000H            ; SET FOR 32KB BLOCK
+05A4  8E C2                             MOV     ES,DX
+05A6  50                                PUSH    AX
+05A7  53                                PUSH    BX
+05A8  52                                PUSH    DX
+05A9  E8 0B59 R                         CALL    PODSTG              ; GO TEST/FILL
+05AC  75 55                             JNZ     Q39                 ;
+05AE  5A                                POP     DX
+05AF  5B                                POP     BX
+05B0  58                                POP     AX
+05B1  05 0020                           ADD     AX,32               ; BUMP GOOD MEMORY COUNT
+05B4  E8 05BC R                         CALL    Q35                 ; DISPLAY CURRENT GOOD MEM
+05B7  80 C6 08                          ADD     DH,08H              ; SET POINTER TO NEXT 32K
+05BA  EB DE                             JMP     Q33                 ; AND MAKE ANOTHER PASS
+
+                                ;---------------------------------------------
+                                ; SUBROUTINE FOR PRINTING TESTED
+                                ; MEMORY OK MSG ON THE CRT
+                                ; CALL PARMS: AX = K OF GOOD MEMORY
+                                ;             (IN HEX)
+                                ;---------------------------------------------
+05BC                            Q35     PROC    NEAR
+05BC  E8 138B R                         CALL    DDS                 ; ESTABLISH ADDRESSING
+05BF  81 3E 0072 R 1234                 CMP     RESET_FLAG,1234H    ; WARM START?
+05C5  74 3B                             JE      Q35E                ; NO PRINT ON WARM START
+05C7  53                                PUSH    BX
+05C8  51                                PUSH    CX
+05C9  52                                PUSH    DX
+05CA  50                                PUSH    AX                  ; SAVE WORK REGS
+05CB  B4 02                             MOV     AH,2                ; SET CURSOR TOWARD THE END OF
+05CD  BA 1421                           MOV     DX,1421H            ; ROW 20 (ROW 20, COL. 33)
+05D0  B7 07                             MOV     BH,7                ; PAGE 7
+05D2  CD 10                             INT     10H
+05D4  58                                POP     AX                  ;
+05D5  50                                PUSH    AX
+05D6  BB 000A                           MOV     BX,10               ; SET UP FOR DECIMAL CONVERT
+05D9  B9 0003                           MOV     CX,3                ; OF 3 NIBBLES
+05DC  33 D2                     Q36:    XOR     DX,DX               ;
+05DE  F7 F3                             DIV     BX                  ; DEVIDE BY 10
+05E0  80 CA 30                          OR      DL,30H              ; MAKE INTO ASCII
+05E3  52                                PUSH    DX                  ; SAVE
+05E4  E2 F6                             LOOP    Q36                 ;
+05E6  B9 0003                           MOV     CX,3                ;
+05E9  58                        Q37:    POP     AX                  ; RECOVER A NUMBER
+05EA  E8 18BA R                         CALL    PRT_HEX
+05ED  E2 FA                             LOOP    Q37
+05EF  B9 0003                           MOV     CX,3
+05F2  BE 0025 R                 Q38:    MOV     SI,OFFSET F3B       ; PRINT " KB"
+05F5  2E: 8A 04                         MOV     AL,CS:[SI]
+05F8  46                                INC     SI
+05F9  E8 18BA R                         CALL    PRT_HEX
+05FC  E2 F7                             LOOP    Q38
+05FE  58                                POP     AX
+05FF  5A                                POP     DX
+0600  59                                POP     CX
+0601  5B                                POP     BX
+0602  C3                        Q35E:   RET
+0603                            Q35     ENDP
+
+                                ; ON ENTRY TO MEMORY ERROR ROUTINE, CX HAS ERROR BITS
+                                ; AH HAS ODD/EVEN INFO, OTHER USEFUL INFO ON THE STACK
+0603  5A                        Q39:    POP     DX                  ; POP SEGMENT POINTER TO DX
+                                ;                         ; (HEADING DOWNHILL, DON'T CARE
+                                ;                         ; ABOUT STACK)
+0604  81 FA 2000                        CMP     DX,2000H            ; ABOVE 128K (THE SIMPLE CASE)
+0608  7C 0E                             JL      Q40                 ; GO DO ODD/EVEN-LESS THAN 128K
+060A  8A D9                             MOV     BL,CL               ; FORM ERROR BITS ("XX")
+060C  0A DD                             OR      BL,DH
+060E  B1 04                             MOV     CL,4                ;
+0610  D2 EE                             SHR     DH,CL               ; ROTATE MOST SIGNIFICANT
+                                                                    ; NIBBLE OF SEGMENT
+0612  B7 10                             MOV     BH,10H              ; TO LOW NIBBLE OF DH
+0614  0A FE                             OR      BH,DH               ; FORM "1Y" VALUE
+0616  EB 20                             JMP     SHORT Q42
+0618  B7 0A                     Q40:    MOV     BH,0AH              ; ERROR 0A....
+061A  E4 62                             IN      AL,PORT_C           ; GET CONFIG BITS
+061C  24 08                             AND     AL,00001000B        ; TEST FOR ATTRIB CARD PRESENT
+061E  74 06                             JZ      Q41                 ; WORRY ABOUT ODD/EVEN IF IT IS
+0620  8A D9                             MOV     BL,CL
+0622  0A DD                             OR      BL,CH               ; COMBINE ERROR BITS IF IT ISN'T
+0624  EB 12                             JMP     SHORT Q42           ;
+; --------------------------------------------------------------------------------------------------
+; A-18
+; --------------------------------------------------------------------------------------------------
+0626  80 FC 02                          CMP     AH,02               ; EVEN BYTE ERROR? ERR 0AXX
+0629  8A D9                             MOV     BL,CL
+062B  74 0B                             JE      Q42
+062D  FE C7                             INC     BH                  ; MAKE INTO 0BXX ERR
+062F  0A DD                             OR      BL,DH               ; MOVE AND COMBINE ERROR BITS
+0631  80 FC 01                          CMP     AH,1                ; ODD BYTE ERROR
+0634  74 02                             JE      Q42
+0636  FE C7                             INC     BH                  ; MUST HAVE BEEN BOTH
+                                ; - MAKE INTO 0CXX
+
+0638  BE 0035 R                 Q42:    MOV     SI,OFFSET MEM_ERR
+063B  E8 09BC R                         CALL    E_MSG               ; LET ERROR ROUTINE FIGURE OUT
+                                ; WHAT TO DO
+
+063E  FA                                CLI
+063F  F4                                HLT
+0640                            Q43:
+                                ;-------------------------------------------------------
+                                ;               KEYBOARD TEST
+                                ; DESCRIPTION
+                                ;       NMI HAS BEEN ENABLED FOR QUITE A FEW
+                                ;       SECONDS NOW. CHECK THAT NO SCAN CODES
+                                ;       HAVE SHOWN UP IN THE BUFFER. (STUCK
+                                ;       KEY) IF THEY HAVE, DISPLAY THEM AND
+                                ;       POST ERROR.
+                                ;       MFG ERR CODE
+                                ;       2000 STRAY NMI INTERRUPTS OR KEYBOARD
+                                ;               RECEIVE ERRORS
+                                ;       21XX   CARD FAILURE
+                                ;               XX=01, KB DATA STUCK HIGH
+                                ;               XX=02, KB DATA STUCK LOW
+                                ;               XX=03, NO NMI INTERRUPT
+                                ;       22XX STUCK KEY (XX=SCAN CODE)
+                                ;-------------------------------------------------------
+                                        ASSUME  DS:DATA
+                                ;----- CHECK FOR STUCK KEYS
+0640  E8 E6D8 R                         CALL    MFG_UP              ; MFG CODE=F2
+0643  E8 138B R                         CALL    DDS                 ; ESTABLISH ADDRESSING
+0646  BB 001E R                         MOV     BX,OFFSET KB_BUFFER
+0649  8A 07                             MOV     AL,[BX]             ; CHECK FOR STUCK KEYS
+064B  0A C0                             OR      AL,AL               ; SCAN CODE = 0?
+064D  74 06                             JE      F6_Y                ; YES - CONTINUE TESTING
+064F  B7 22                             MOV     BH,22H              ; 22XX ERROR CODE
+0651  8A D8                             MOV     BL,AL               ;
+0653  EB 0A                             JMP     SHORT F6
+0655  80 3E 0012 R 00           F6_Y:   CMP     KBD_ERR,00H         ; DID NMI'S HAPPEN WITH NO SCAN
+                                                                    ; CODE PASSED?
+065A  74 1C                             JE      F7                  ; (STRAYS) - CONTINUE IF NONE
+065C  BB 2000                           MOV     BX,2000H            ; SET ERROR CODE 2000
+065F  BE 0036 R                 F6:     MOV     SI,OFFSET KEY_ERR   ; GET MSG ADDR
+0662  81 3E 0072 R 4321                 CMP     RESET_FLAG,4321H    ; WARM START TO DIAGS
+0668  74 0B                             JE      F6_Z                ; DO NOT PUT UP MESSAGE
+066A  81 3E 0072 R 1234                 CMP     RESET_FLAG,1234H    ; WARM SYSTEM START
+0670  74 03                             JE      F6_Z                ; DO NOT PUT UP MESSAGE
+0672  E8 09BC R                         CALL    E_MSG               ; PRINT MSG ON SCREEN
+0675  E9 06FF R                 F6_Z:   JMP     F6_X
+                                ; CHECK LINK CARD, IF PRESENT
+0678  BA 0201                   F7:     MOV     DX,0201H            ; CHECK FOR BURN-IN MODE
+067B  EC                                IN      AL,DX               ; GET CONFIG. PORT DATA
+067C  24 F0                             AND     AL,0F0H             ; BYPASS CHECK IN BURN-IN MODE
+067E  74 7F                             JZ      F6_X                ; KEYBOARD CABLE ATTACHED?
+0680  E4 62                             IN      AL,PORT_C           ; BYPASS TEST IF IT IS
+0682  24 80                             AND     AL,10000000B        ;
+0684  74 79                             JZ      F6_X                ;
+0686  E4 61                             IN      AL,PORT_B           ;
+0688  24 FC                             AND     AL,11111100B        ; DROP SPEAKER DATA
+068A  E6 61                             OUT     PORT_B,AL           ;
+068C  B0 B6                             MOV     AL,0B6H             ; MODE SET TIMER 2
+068E  E6 43                             OUT     TIM_CTL,AL          ;
+0690  B0 40                             MOV     AL,040H             ; DISABLE NMI
+0692  E6 A0                             OUT     0A0H,AL             ;
+0694  B0 20                             MOV     AL,32               ; LSB TO TIMER 2
+                                                                    ; (APPROX. 40Khz VALUE)
+0696  BA 0042                           MOV     DX,TIMER+2
+0699  EE                                OUT     DX,AL
+069A  2B C0                             SUB     AX,AX
+069C  8B C8                             MOV     CX,AX
+069E  EE                                OUT     DX,AL               ; MSB TO TIMER 2 (START TIMER)
+069F  E4 61                             IN      AL,PORT_B
+06A1  0C 01                             OR      AL,1
+06A3  E6 61                             OUT     PORT_B,AL           ; ENABLE TIMER 2
+06A5  E4 62                     F7_0:   IN      AL,PORT_C           ; SEE IF KEYBOARD DATA ACTIVE
+06A7  24 40                             AND     AL,01000000B        ;
+06A9  75 06                             JNZ     F7_1                ; EXIT LOOP IF DATA SHOWED UP
+06AB  E2 F8                             LOOP    F7_0
+06AD  B3 02                             MOV     BL,02H              ; SET NO KEYBOARD DATA ERROR
+06AF  EB 49                             JMP     SHORT F6_1
+06B1  06                        F7_1:   PUSH    ES                  ; SAVE ES
+06B2  2B C0                             SUB     AX,AX               ; SET UP SEGMENT REG
+06B4  8E C0                             MOV     ES,AX               ; *
+06B6  26: C7 06 0008 R F815 R           MOV     ES:[NMI_PTR],OFFSET D11 ; SET UP NEW NMI VECTOR
+06BD  A2 0084 R                         MOV     INTR_FLAG,AL        ; RESET INTR FLAG
+06C0  E4 61                             IN      AL,PORT_B           ; DISABLE INTERNAL BEEPER TO
+06C2  0C 30                             OR      AL,00110000B        ; PREVENT ERROR BEEP
+06C4  E6 61                             OUT     PORT_B,AL
+06C6  B0 C0                             MOV     AL,0C0H
+06C8  E6 A0                             OUT     0A0H,AL             ; ENABLE NMI
+06CA  B9 0100                           MOV     CX,0100H            ;
+; --------------------------------------------------------------------------------------------------
+; A-19
+; --------------------------------------------------------------------------------------------------
+06CD  E2 FE                     F6_0:   LOOP    F6_0                ; WAIT A BIT
+06CF  E4 61                             IN      AL,PORT_B           ; RE-ENABLE BEEPER
+06D1  24 CF                             AND     AL,11001111B
+06D3  E6 61                             OUT     PORT_B,AL
+06D5  A0 0084 R                         MOV     AL,INTR_FLAG        ; GET INTR FLAG
+06D8  0A C0                             OR      AL,AL               ; WILL BE NON-ZERO IF NMI HAPPENED
+06DA  B3 03                             MOV     BL,03H              ; SET POSSIBLE ERROR CODE
+06DC  26: C7 06 0008 R 0F78 R           MOV     ES:[NMI_PTR],OFFSET KBDNMI ; RESET NMI VECTOR
+06E3  07                                POP     ES                  ; RESTORE ES
+06E4  74 14                             JZ      F6_1                ; JUMP IF NO NMI
+06E6  B0 00                             MOV     AL,00H              ; DISABLE FEEDBACK CKT
+06E8  E6 A0                             OUT     0A0H,AL             ;
+06EA  E4 61                             IN      AL,PORT_B           ;
+06EC  24 FE                             AND     AL,11111110B        ; DROP GATE TO TIMER 2
+06EE  E6 61                             OUT     PORT_B,AL           ;
+06F0  E4 62                     F6_2:   IN      AL,PORT_C           ; SEE IF KEYBOARD DATA ACTIVE
+06F2  24 40                             AND     AL,01000000B
+06F4  74 09                             JZ      F6_X                ; EXIT LOOP IF DATA WENT LOW
+06F6  E2 F8                             LOOP    F6_2                ;
+06F8  B3 01                     F6_1:   MOV     BL,01H              ; SET KEYBOARD DATA STUCK HIGH ERR
+06FA  B7 21                             MOV     BH,21H              ; POST ERROR "21XX"
+06FC  E9 065F R                         JMP     F6                  ;
+06FF  B0 00                     F6_X:   MOV     AL,00H              ; DISABLE FEEDBACK CKT
+0701  E6 A0                             OUT     0A0H,AL             ;
+
+                                ;--------------------------------------------
+                                ;       CASSETTE INTERFACE TEST
+                                ; DESCRIPTION
+                                ;       TURN CASSETTE MOTOR OFF. WRITE A BIT OUT TO THE
+                                ;       CASSETTE DATA BUS. VERIFY THAT CASSETTE DATA
+                                ;       READ IS WITHIN A VALID RANGE.
+                                ;       MFG. ERROR CODE=2300H (DATA PATH ERROR)
+                                ;                       23FF (RELAY FAILED TO PICK)
+                                ;--------------------------------------------
+= 0A9A                          MAX_PERIOD     EQU     0A9AH        ; NOM.+10%
+= 08AD                          MIN_PERIOD     EQU     08ADH        ; NOM -10%
+                                ;------ TURN THE CASSETTE MOTOR OFF
+0703  E8 E6D8 R                         CALL    MFG_UP              ; MFG CODE=F1
+0706  E4 61                             IN      AL,PORT_B
+0708  0C 09                             OR      AL,00001001B        ; SET TIMER 2 SPK OUT, AND CASSETTE
+070A  E6 61                             OUT     PORT_B,AL           ; OUT BITS ON, CASSETTE MOT OFF
+
+                                ;------ WRITE A BIT
+070C  E4 21                             IN      AL,INTA01           ; DISABLE TIMER INTERRUPTS
+070E  0C 01                             OR      AL,01H
+0710  E6 21                             OUT     INTA01,AL
+0712  B0 B6                             MOV     AL,0B6H             ; SEL TIM 2, LSB, MSB, MD 3
+0714  E6 43                             OUT     TIMER+3,AL          ; WRITE 8253 CMD/MODE REG
+0716  B8 04D2                           MOV     AX,1234             ; SET TIMER 2 CNT FOR 1000 USEC
+0719  E6 42                             OUT     TIMER+2,AL          ; WRITE TIMER 2 COUNTER REG
+071B  8A C4                             MOV     AL,AH               ; WRITE MSB
+071D  E6 42                             OUT     TIMER+2,AL
+071F  2B C9                             SUB     CX,CX               ; CLEAR COUNTER FOR LONG DELAY
+0721  E2 FE                             LOOP    $                   ; WAIT FOR COUNTER TO INIT
+
+                                ;------ READ CASSETTE INPUT
+0723  E4 62                             IN      AL,PORT_C           ; READ VALUE OF CASS IN BIT
+0725  24 10                             AND     AL,10H              ; ISOLATE FROM OTHER BITS
+0727  A2 006B R                         MOV     LAST_VAL,AL
+072A  E8 F96F R                         CALL    READ_HALF_BIT       ; TO SET UP CONDITIONS FOR CHECK
+072D  E8 F96F R                         CALL    READ_HALF_BIT
+0730  E3 3E                             JCXZ    F8                  ; CAS_ERR
+0732  53                                PUSH    BX                  ; SAVE HALF BIT TIME VALUE
+0733  E8 F96F R                         CALL    READ_HALF_BIT
+0736  58                                POP     AX                  ; GET TOTAL TIME
+0737  E3 37                             JCXZ    F8                  ; CAS_ERR
+0739  03 C3                             ADD     AX,BX
+073B  3D 0A9A                           CMP     AX,MAX_PERIOD
+073E  73 30                             JNC     F8                  ; CAS_ERR
+0740  3D 08AD                           CMP     AX,MIN_PERIOD
+0743  72 2B                             JC      F8
+0745  BA 0201                           MOV     DX,201H
+0748  EC                                IN      AL,DX
+0749  24 F0                             AND     AL,0F0H             ; DETERMINE MODE
+074B  3C 10                             CMP     AL,00010000B        ; MFG?
+074D  74 04                             JE      F9
+074F  3C 40                             CMP     AL,01000000B        ; SERVICE?
+0751  75 26                             JNE     T13_END             ; GO TO NEXT TEST IF NOT
+                                ; CHECK THAT CASSETTE RELAY IS PICKING (CAN'T DO TEST IN NORMAL
+                                ; MODE BECAUSE OF POSSIBILITY OF WRITING ON CASSETTE IF "RECORD"
+                                ; BUTTON IS DEPRESSED.)
+0753  E4 61                     F9:     IN      AL,PORT_B           ; SAVE PORT B CONTENTS
+0755  8A D0                             MOV     DL,AL
+0757  24 E5                             AND     AL,11100101B        ; SET CASSETTE MOTOR ON
+0759  E6 61                             OUT     PORT_B,AL           ;
+075B  33 C9                             XOR     CX,CX               ;
+075D  E2 FE                             LOOP    F91                 ; WAIT FOR RELAY TO SETTLE
+075F  E8 F96F R                 F91:    CALL    READ_HALF_BIT
+0762  E8 F96F R                         CALL    READ_HALF_BIT
+0765  8A C2                             MOV     AL,DL               ; DROP RELAY
+0767  E6 61                             OUT     PORT_B,AL
+0769  E3 0E                             JCXZ    T13_END             ; READ_HALF_BIT SHOULD TIME OUT IN
+                                                                    ; THIS SITUATION
+076B  BB 23FF                           MOV     BX,23FFH            ; ERROR 23FF
+076E  EB 03                             JMP     SHORT F81
+0770                            F8:     ; CAS_ERR
+0770  BB 2300                           MOV     BX,2300H            ; ERR. CODE 2300H
+0773  BE 0037 R                 F81:    MOV     SI,OFFSET CASS_ERR  ; CASSETTE WRAP FAILED
+0776  E8 09BC R                         CALL    E_MSG               ; GO PRINT ERROR MSG
+0779                            T13_END:
+0779  E4 21                             IN      AL,INTA01           ; ENABLE TIMER INTS
+077B  24 FE                             AND     AL,0FEH
+077D  E6 21                             OUT     INTA01,AL
+077F  E4 A0                             IN      AL,NMI_PORT         ; CLEAR NMI FLIP/FLOP
+0781  B0 80                             MOV     AL,80H              ; ENABLE NMI INTERRUPTS
+0783  E6 A0                             OUT     NMI_PORT,AL
+; --------------------------------------------------------------------------------------------------
+; A-20
+; --------------------------------------------------------------------------------------------------
+                                ;
+                                ;       SERIAL PRINTER AND MODEM POWER ON DIAGNOSTIC
+                                ; DESCRIPTION:
+                                ;       VERIFIES THAT THE SERIAL PRINTER UART FUNCTIONS PROPERLY.
+                                ;       CHECKS IF THE MODEM CARD IS ATTACHED.  IF IT'S NOT, EXITS.
+                                ;       VERIFIES THAT THE MODEM UART FUNCTIONS PROPERLY.
+                                ;       ERROR CODES RETURNED BY 'UART' RANGE FROM 1 TO 1FH AND ARE
+                                ;       REPORTED VIA REGISTER BL.  SEE LISTING OF 'UART' (POD27)
+                                ;       FOR POSSIBLE ERRORS.
+                                ;       MFG. ERR. CODES  23XX FOR SERIAL PRINTER
+                                ;                       24XX FOR MODEM
+                                ;
+
+                                        ASSUME  CS:CODE,DS:DATA
+
+                                ;-------------------------------------------------------
+                                ;       TEST SERIAL PRINTER INS8250 UART
+                                ;-------------------------------------------------------
+
+0785  E8 E6D8 R                         CALL    MFG_UP              ; MFG ROUTINE INDICATOR=F0
+0788  BA 02F8                           MOV     DX,02F8H            ; ADDRESS OF SERIAL PRINTER CARD
+078B  E8 E831 R                         CALL    UART                ; ASYNCH. COMM. ADAPTER POD
+078E  73 06                             JNC     TM                  ; PASSED
+0790  BE 0038 R                         MOV     SI,OFFSET COM1_ERR  ; CODE FOR DISPLAY
+0793  E8 09BC R                         CALL    E_MSG               ; REPORT ERROR
+
+                                ;-------------------------------------------------------
+                                ;       TEST MODEM INS8250 UART
+                                ;-------------------------------------------------------
+0796  E8 E6D8 R                 TM:     CALL    MFG_UP              ; MFG ROUTINE INDICATOR = EF
+0799  E4 62                             IN      AL,PORT_C           ; TEST FOR MODEM CARD PRESENT
+079B  24 02                             AND     AL,00000010B        ; ONLY CONCERNED WITH BIT 1
+079D  75 0E                             JNE     TM1                 ; IT'S NOT THERE - DONE WITH TEST
+079F  BA 03F8                           MOV     DX,03F8H            ; ADDRESS OF MODEM CARD
+07A2  E8 E831 R                         CALL    UART                ; ASYNCH. COMM. ADAPTER POD
+07A5  73 06                             JNC     TM1                 ; PASSED
+07A7  BE 0039 R                         MOV     SI,OFFSET COM2_ERR  ; MODEM ERROR
+07AA  E8 09BC R                         CALL    E_MSG               ; REPORT ERROR
+07AD                            TM1:
+                                ;-------------------------------------------------------
+                                ;       SETUP HARDWARE INT. VECTOR TABLE
+                                ;-------------------------------------------------------
+07AD                                    ASSUME  CS:CODE,DS:ABSO
+07AD  2B C0                             SUB     AX,AX
+07AF  8E C0                             MOV     ES,AX
+07B1  B9 0008                           MOV     CX,08               ; GET VECTOR CNT
+07B4  0E                                PUSH    CS                  ; SETUP DS SEG REG
+07B5  1F                                POP     DS
+07B6  BE FEF3 R                         MOV     SI,OFFSET VECTOR_TABLE
+07B9  BF 0020 R                         MOV     DI,OFFSET INT_PTR
+07BC  A5                        F7A:    MOVSW
+07BD  47                                INC     DI                  ; SKIP OVER SEGMENT
+07BE  47                                INC     DI
+07BF  E2 FB                             LOOP    F7A
+
+                                ;----- SET UP OTHER INTERRUPTS AS NECESSARY
+                                        ASSUME  DS:ABSO
+07C1  8E D9                             MOV     DS,CX
+07C3  C7 06 0014 R FF54 R               MOV     INT5_PTR,OFFSET PRINT_SCREEN ; PRINT SCREEN
+07C9  C7 06 0120 R 10C6 R               MOV     KEY62_PTR,OFFSET KEY62_INT ; 62 KEY CONVERSION
+07CF  C7 06 0110 R FA6E R               MOV     CSET_PTR,OFFSET CRT_CHAR_GEN ; DOT TABLE
+07D5  C7 06 0060 R FFCB R               MOV     BASIC_PTR,OFFSET BAS_ENT ; CASSETTE BASIC ENTRY
+07DB  0E                                PUSH    CS
+07DC  58                                POP     AX
+07DD  A3 0062 R                         MOV     WORD PTR BASIC_PTR+2,AX ; CODE SEGMENT FOR CASSETTE
+
+                                ;-------------------------------------------------------
+                                ; CHECK FOR OPTIONAL ROM FROM C0000 TO F0000 IN 2K BLOCKS
+                                ; (A VALID MODULE HAS '55AA' IN THE FIRST 2 LOCATIONS,
+                                ;  LENGTH INDICATOR (LENGTH/512) IN THE 3D LOCATION AND
+                                ;  TEST/INIT. CODE STARTING IN THE 4TH LOCATION.)
+                                ; MFG ERR CODE 25XX (XX=MSB OF SEGMENT THAT HAS CRC CHECK)
+                                ;-------------------------------------------------------
+07E0  B0 01                             MOV     AL,01H
+07E2  E6 13                             OUT     13H,AL
+07E4  E8 E6D8 R                         CALL    MFG_UP              ; MFG ROUTINE = EE
+07E7  BA C000                           MOV     DX,0C000H           ; SET BEGINNING ADDRESS
+07EA                            ROM_SCAN_1:
+07EA  8E DA                             MOV     DS,DX
+07EC  2B DB                             SUB     BX,BX               ; SET BX=0000
+07EE  8B 07                             MOV     AX,[BX]             ; GET 1ST WORD FROM MODULE
+07F0  53                                PUSH    BX
+07F1  5B                                POP     BX                  ; BUS SETTLING
+07F2  3D AA55                           CMP     AX,0AA55H           ; = TO ID WORD?
+07F5  75 05                             JNZ     NEXT_ROM            ; PROCEED TO NEXT ROM IF NOT
+07F7  E8 EB51 R                         CALL    ROM_CHECK           ; GO CHECK OUT MODULE
+07FA  EB 04                             JMP     SHORT ARE_WE_DONE   ; CHECK FOR END OF ROM SPACE
+07FC                            NEXT_ROM:
+07FC  81 C2 0080                        ADD     DX,0080H            ; POINT TO NEXT 2K ADDRESS
+0800                            ARE_WE_DONE:
+0800  81 FA F000                        CMP     DX,0F000H           ; AT F0000 YET?
+0804  7C E4                             JL      ROM_SCAN_1          ; GO CHECK ANOTHER ADD. IF NOT
