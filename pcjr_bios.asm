@@ -3271,7 +3271,7 @@
 0F70  5F                                POP     DI
 0F71  5E                                POP     SI
 0F72  5B                                POP     BX
-0F73  59 C22:                           POP     CX
+0F73  59                        C22:    POP     CX
 0F74  5A                                POP     DX
 0F75  1F                                POP     DS
 0F76  07                                POP     ES              ; RECOVER SEGMENTS
@@ -5553,8 +5553,10 @@
 1CF0  50                                PUSH    AX
 1CF1  1E                                PUSH    DS
 1CF2  E8 138B R                         CALL    DDS
+                                        ASSUME  DS:DATA
 1CF5  A0 0071 R                         MOV     AL,BIOS_BREAK
 1CF8  1F                                POP     DS
+                                        ASSUME  DS:NOTHING
 1CF9  A8 80                             TEST    AL,80H
 1CFB  58                                POP     AX
 1CFC  C3                                RET
@@ -5854,7 +5856,7 @@
                 ]
 1FFF  AB                                        DB      0ABH
 
-                                LIST
+                                ; LIST
                                 ASSUME  CS:CODE,DS:DATA
 E000                                    ORG     0E000H
 E000  31 35 30 34 30 33                 DB      '1504037 COPR. IBM 1981,1983' ; COPYRIGHT NOTICE
@@ -7207,7 +7209,7 @@ E82E  E9 13DD R                         JMP     NEAR PTR KEYBOARD_IO
                                 ;              - THE 8250 IS IN THE MASTER RESET STATE.
                                 ;              ONLY THE DS REGISTER IS PRESERVED - ALL OTHERS ARE ALTERED.
                                 ;------------------------------------------------------------------
-= 0084                         WRAP            EQU     84H         ; LOOP BACK TRANSMISSION TEST
+= 0084                          WRAP            EQU     84H         ; LOOP BACK TRANSMISSION TEST
                                 ; INTERRUPT VECTOR ADDRESS
                                 ; (IN DIAGNOSTICS)
 
@@ -7512,7 +7514,7 @@ E98B  51                                PUSH    CX
 E98C  BA 00F4                          MOV     DX,NEC_STAT     ; STATUS PORT
 E98F  33 C9                             XOR     CX,CX           ; COUNT FOR TIME OUT
 E991  EC                        J23:    IN      AL,DX           ; GET STATUS
-E992  A8 40                             TEST    AL,D10          ; TEST DIRECTION BIT
+E992  A8 40                             TEST    AL,DIO          ; TEST DIRECTION BIT
 E994  74 0C                             JZ      J25             ; DIRECTION OK
 E996  E2 F9                             LOOP    J23
 E998                            J24:                            ; TIME_ERROR
@@ -8641,13 +8643,13 @@ EF5E  8B EC                             MOV     BP,SP           ; POINT BP AT ST
 EF60  0E                                PUSH    CS              ; WAS IT IN THE BIOS AREA
 EF61  58                                POP     AX
 EF62  3B 46 0A                          CMP     AX,WORD PTR[BP+10] ; GET INTERRUPTED SEGMENT
-EF65  75 48                             JNE     D13             ; NOT IN BIOS, ERROR CONDITION
+EF65  75 48                             JNE     DI3             ; NOT IN BIOS, ERROR CONDITION
 EF67  8B 46 08                          MOV     AX,WORD PTR[BP+8] ; GET IP ON THE STACK
 EF6A  3D EE20 R                         CMP     AX,OFFSET VERIFY_LOOP ; RANGE CHECK IP FOR DISK
                                                                 ;       TRANSFER
-EF6D  7C 40                             JL      D13             ; BELOW TRANSFER CODE
+EF6D  7C 40                             JL      DI3             ; BELOW TRANSFER CODE
 EF6F  3D EE66 R                         CMP     AX,OFFSET OP_END+1 ; UPPER RANGE OF TRANSFER CODE
-EF72  7D 3B                             JGE     D13             ; ABOVE RANGE OF WATCHDOG TERRAIN
+EF72  7D 3B                             JGE     DI3             ; ABOVE RANGE OF WATCHDOG TERRAIN
                                 ;-------VALID DISKETTE INTERRUPT CHANGE RETURN ADDRESS ON STACK TO
                                 ;       PULL OUT OF LOOP
 EF74  C7 46 08 EE65 R                   MOV     WORD PTR[BP+8],OFFSET OP_END
@@ -8665,26 +8667,26 @@ EF7E  BA 00F4                           MOV     DX,NEC_STAT
 EF81  EC                                IN      AL,DX           ; GET NEC STATUS BYTE
 EF82  24 F0                             AND     AL,0F0H         ; MASK HIGH NIBBLE
 EF84  3C D0                             CMP     AL,0D0H         ; IS EXECUTION PHASE DONE
-EF86  75 14                             JNE     D11             ; STUCK IN LOOP
+EF86  75 14                             JNE     DI1             ; STUCK IN LOOP
 EF88  E8 EAA0 R                         CALL    RESULTS         ; GET STATUS OF OPERATION
 EF8B  BE 0042 R                         MOV     SI,OFFSET NEC_STATUS ; ADDRESS OF BYTES RETURNED BY
                                                                 ;       NEC
 EF8E  8A 44 01                          MOV     AL,[SI+1]       ; GET ST1
 EF91  A8 02                             TEST    AL,02H          ; WRITE PROTECT SIGNAL ACTIVE?
-EF93  74 07                             JZ      D11             ; TIME OUT ERROR
+EF93  74 07                             JZ      DI1             ; TIME OUT ERROR
 EF95  80 0E 0041 R 03                   OR      DISKETTE_STATUS,WRITE_PROTECT
-EF9A  EB 13                             JMP     SHORT D13
+EF9A  EB 13                             JMP     SHORT DI3
                                 ;-------TIME OUT ERROR
-EF9C  80 0E 0041 R 80           D11:    OR      DISKETTE_STATUS,TIME_OUT
+EF9C  80 0E 0041 R 80           DI1:    OR      DISKETTE_STATUS,TIME_OUT
 EFA1  C6 06 003E R 00                   MOV     SEEK_STATUS,0   ; SET RECAL ON DRIVES
                                 ;------- RESET THE NEC AND DISABLE WATCHDOG
-EFA6  BA 00F2                   D12:    MOV     DX,NEC_CTL      ; ADDRESS TO NEC CONTROL PORT
+EFA6  BA 00F2                   DI2:    MOV     DX,NEC_CTL      ; ADDRESS TO NEC CONTROL PORT
 EFA9  5D                                POP     BP              ; POINT BP AT BASE OF STACKED
                                                                 ;       PARAMETERS
 EFAA  E8 EB45 R                         CALL    GET_DRIVE       ; RESET ADAPTER AND DISABLE WD
 EFAD  55                                PUSH    BP              ; RESTORE FOR RETURNED CALL
 EFAE  EE                                OUT     DX,AL
-EFAF  B0 20                     D13:    MOV     AL,EOI           ; GIVE EOI TO 8259
+EFAF  B0 20                     DI3:    MOV     AL,EOI           ; GIVE EOI TO 8259
 EFB1  E6 20                             OUT     INTA00,AL
 EFB3  5D                                POP     BP
 EFB4  5A                                POP     DX
