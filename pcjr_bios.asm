@@ -4106,8 +4106,7 @@
                                 ;       AS NOTED ABOVE, ONLY AX AND FLAGS CHANGED
                                 ;       ALL REGISTERS RETAINED
                                 ;-------------------------------------------------------------------------
-13DD                            KEYBOARD_IO
-13DD                                    PROC    FAR
+13DD                            KEYBOARD_IO     PROC    FAR
                                 ASSUME  CS:CODE,DS:DATA
 13DD  FB                                STI                     ; INTERRUPTS BACK ON
 13DE  1E                                PUSH    DS              ; SAVE CURRENT DS
@@ -4169,8 +4168,7 @@
 144C  5B                                POP     BX              ; RECOVER REGISTER
 144D  1F                                POP     DS              ; RECOVER REGISTER
 144E  CF                                IRET                    ; RETURN TO CALLER
-144F                            KEYBOARD_IO
-144F                                    ENDP
+144F                            KEYBOARD_IO     ENDP
 
 144F                            ;------- INCREMENT A BUFFER POINTER
 144F                            K4      PROC    NEAR
@@ -4791,8 +4789,7 @@
 18C2  C3                                RET
 18C3                            PRT_HEX ENDP
                                 XLAT_PR ENDP
-18C3                            XPC_BYTE
-18C3                                    ENDP
+18C3                            XPC_BYTE        ENDP
                                 ;CONTROL IS PASSED HERE WHEN THERE ARE NO PARALLEL PRINTERS
                                 ;ATTACHED. CX HAS EQUIPMENT FLAG,DS POINTS AT DATA (40H)
                                 ;DETERMINE WHICH RS232 CARD (0,1) TO USE
