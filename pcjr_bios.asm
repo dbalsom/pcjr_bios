@@ -3178,7 +3178,7 @@
 0EC2  C5 1E 0074 R                      LDS     BX,PARM_PTR     ; GET POINTER TO VIDEO PARMS
                                         ASSUME  DS:CODE
 0EC6  8B C7                             MOV     AX,DI           ; GET CURRENT MODE IN AX
-0EC8  B9 0010 90                        MOV     CX,MO040        ; LENGTH OF EACH ROW OF TABLE
+0EC8  B9 0010 90                        MOV     CX,M0040        ; LENGTH OF EACH ROW OF TABLE
 0ECC  80 FC 02                          CMP     AH,2            ; DETERMINE WHICH TO USE
 0ECF  72 10                             JC      C17             ; MODE IS 0 OR 1
 0ED1  03 D9                             ADD     BX,CX           ; MOVE TO NEXT ROW OF INIT TABLE
