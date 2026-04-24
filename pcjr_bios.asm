@@ -2025,7 +2025,7 @@
 095E  75 09                             JNZ     F19_A           ; DO NOTHING IF PARALLEL PRINTER
                                                                 ; ATTACHED
 0960  80 C9 40                          OR      CL,01000000B    ; INDICATE 1 PRINTER ATTACHED
-0963  C7 06 0008 R 02F8                 MOV     PRINTER_BASE,2F8 ; STORE ON-BOARD RS232 BASE IN
+0963  C7 06 0008 R 02F8                 MOV     PRINTER_BASE,02F8H ; STORE ON-BOARD RS232 BASE IN
                                                                 ; PRINTER BASE
 0969  08 0E 0011 R              F19_A:  OR      BYTE PTR EQUIP_FLAG+1,CL ; STORE AS SECOND BYTE
 096D  33 D2                             XOR     DX,DX           ; POINT TO FIRST SERIAL PORT
@@ -2058,7 +2058,7 @@
 09A7  C7 06 0072 R 1234                 MOV     RESET_FLAG,1234H ; SET WARM START INDICATOR IN CASE
                                                                 ; OF CARTRIDGE RESET
 09AD  CD 19                             INT     19H             ; GO TO THE BOOT LOADER
-
+                                        ASSUME  DS:ABS0
 09AF  FA                        F19_3:  CLI
 09B0  2B C0                             SUB     AX,AX
 09B2  8E D8                             MOV     DS,AX               ; RESET TIMER INT.
@@ -3103,7 +3103,7 @@
 0E3B  B9 0004                           MOV     CX,M0070L       ; SET TABLE ENTRY LENGTH
 0E3E  F7 E1                             MUL     CX              ; TIMES MODE FOR OFFSET INTO TABLE
 0E40  8B D8                             MOV     BX,AX           ; TABLE OFFSET IN BX
-0E42  81 C3 0D69 R                      ADD     BX,OFFSETM0070  ; ADD TABLE START TO OFFSET
+0E42  81 C3 0D69 R                      ADD     BX,OFFSET M0070  ; ADD TABLE START TO OFFSET
 0E46  2E: 8A 27                         MOV     AH,CS:[BX]      ; SAVE MODE SET AND PALETTE
 0E49  2E: 8A 47 02                      MOV     AL,CS:[BX + 2]  ; TILL WE CAN PUT THEM IN RAM
 0E4D  8B F0                             MOV     SI,AX
