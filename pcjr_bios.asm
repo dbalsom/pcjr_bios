@@ -431,7 +431,7 @@
                                 ;               ROM RESIDENT CODE
                                 ;-----------------------------------------------
 0000                            CODE            SEGMENT PAGE
-                                                ASSUME  CS:CODE,DS:ABSO,ES:NOTHING,SS:STACK
+                                                ASSUME  CS:CODE,DS:ABS0,ES:NOTHING,SS:STACK
 0000  31 35 30 34 30 33                         DB      '1504036 COPR. IBM 1981,1983' ; COPYRIGHT NOTICE
       36 20 43 4F 50 52
       2E 20 49 42 4D 20
@@ -475,7 +475,7 @@
                                 ;       SOUND CHIP, AND VIDEO.           :
                                 ;       TURN DRIVE 0 MOTOR OFF           :
                                 ;-----------------------------------------
-                                        ASSUME  CS:CODE,DS:ABSO,ES:NOTHING,SS:STACK
+                                        ASSUME  CS:CODE,DS:ABS0,ES:NOTHING,SS:STACK
 0043                                    RESET   LABEL   FAR
 0043  B0 00                     START:  MOV     AL,0
 0045  E6 A0                             OUT     0A0H,AL         ; DISABLES NMI
@@ -782,7 +782,7 @@
                                                                 ; ERROR OUTPUT ROUTINE SO DIAGS.
                                                                 ; DON'T HAVE TO DUPLICATE CODE
 
-                                        ASSUME  CS:CODE,DS:ABSO
+                                        ASSUME  CS:CODE,DS:ABS0
 0203 BB 0000                            MOV     AX,0
 0206 8E D8                              MOV     DS,AX
                                 ;------ SET UP THE INTERRUPT VECTORS TO TEMP INTERRUPT
@@ -820,7 +820,7 @@
 0239  47                                INC     DI              ; POINT TO NEXT VECTOR ENTRY
 023A  E2 FB                             LOOP    D5              ; REPEAT FOR ALL 16 BIOS INTERRUPTS
 023C  8E D9                             MOV     DS,CX           ; SET DS TO ZERO
-023E  C7 06 0204 R 1B63 R               MOV     INTB1,OFFSET LOCATE1
+023E  C7 06 0204 R 1B63 R               MOV     INT81,OFFSET LOCATEI
 0244  C7 06 0208 R 1A2A R               MOV     INT82,OFFSET PRNT3
 024A  C7 06 0224 R 1BA5 R               MOV     INT89,OFFSET JOYSTICK
 
@@ -841,7 +841,7 @@
                                 ;       BIT 1 NOT USED
                                 ;       BIT 0 = 1 (IPL DISKETTE INSTALLED)
                                 ;---------------------------------------------------
-0250  BB 1118                           ASSUME  CS:CODE,DS:ABSO
+0250  BB 1118                           ASSUME  CS:CODE,DS:ABS0
                                         MOV     BX,1118H        ; DEFAULT GAMEI0,40X25,NO DMA,48K ON
                                                                 ; PLANAR
 0253  E4 62                             IN      AL,PORT_C
@@ -856,7 +856,7 @@
                                 ;       XX=ANY OTHER BITS ON=UNEPECTED INTERRUPTS
                                 ;-------------------------------------------------------------
 0260  E8 E6D8 R                         CALL    MFG_UP          ; MFG CODE=F7
-                                        ASSUME  DS:ABSO,CS:CODE
+                                        ASSUME  DS:ABS0,CS:CODE
 0263  B0 13                             MOV     AL,13H          ; ICW1 - RESET EDGE SENSE CIRCUIT,
                                                                 ;SET SINGLE 8259 CHIP AND ICW4 READ
 0265  E6 20                             OUT     INTA00,AL
@@ -899,7 +899,7 @@
 029A  E6 F2                             OUT     0F2H,AL
 029C  B0 A0                             MOV     AL,WD_ENABLE+FDC_RESET
 029E  E6 F2                             OUT     0F2H,AL
-                                        ASSUME  CS:CODE,DS:ABSO
+                                        ASSUME  CS:CODE,DS:ABS0
                                 ;------------------------------------------------------------------
                                 ;       8253 TIMER CHECKOUT
                                 ; DESCRIPTION
@@ -1336,7 +1336,7 @@
 04C9  90                                NOP
 04CA  E6 41                             OUT     TIMER+1,AL
 
-                                        ASSUME  DS:ABSO
+                                        ASSUME  DS:ABS0
 04CC  E8 E6D8 R                         CALL    MFG_UP              ; MFG CHECKPOINT=F4
 04CF  33 C0                             XOR     AX,AX
 04D1  8E D8                             MOV     DS,AX
@@ -1783,7 +1783,7 @@
                                 ;---------------------------------------------------------------
                                 ;       SETUP HARDWARE INT. VECTOR TABLE
                                 ;---------------------------------------------------------------
-07AD                                    ASSUME  CS:CODE,DS:ABSO
+07AD                                    ASSUME  CS:CODE,DS:ABS0
 07AD  2B C0                             SUB     AX,AX
 07AF  8E C0                             MOV     ES,AX
 07B1  B9 0008                           MOV     CX,08           ; GET VECTOR CNT
@@ -1796,7 +1796,7 @@
 07BE  47                                INC     DI
 07BF  E2 FB                             LOOP    F7A
                                 ;----- SET UP OTHER INTERRUPTS AS NECESSARY
-                                        ASSUME  DS:ABSO
+                                        ASSUME  DS:ABS0
 07C1  8E D9                             MOV     DS,CX
 07C3  C7 06 0014 R FF54 R               MOV     INT5_PTR,OFFSET PRINT_SCREEN ; PRINT SCREEN
 07C9  C7 06 0120 R 10C6 R               MOV     KEY62_PTR,OFFSET KEY62_INT ; 62 KEY CONVERSION
@@ -2375,7 +2375,7 @@
                                 ;       INT. 18H TO ITSELF, CONTROL WILL BE PASSED TO
                                 ;       THE CARTRIDGE.
                                 ;-------------------------------------------------------
-                                        ASSUME  CS:CODE,DS:ABSO
+                                        ASSUME  CS:CODE,DS:ABS0
 0B1B                            BOOT_STRAP      PROC    NEAR
 0B1B  FB                                STI                     ; ENABLE INTERRUPTS
 0B1C  2B C0                             SUB     AX,AX           ; SET 40X25 B&W MODE ON CRT
@@ -2437,7 +2437,7 @@
 ; A-027
 ; --------------------------------------------------------------------------------------------------
 0B59                            PODSTG  PROC    NEAR
-                                        ASSUME  DS:ABSO
+                                        ASSUME  DS:ABS0
 0B59  FC                                CLD                     ; SET DIRECTION TO INCREMENT
 0B5A  2B FF                             SUB     DI,DI           ; SET DI=0000 REL. TO START OF SEG
 0B5C  2B C0                             SUB     AX,AX           ; INITIAL DATA PATTERN FOR 00-FF
@@ -3171,9 +3171,9 @@
 0EBB  E6 61                     C16:    OUT     PORT_B,AL       ; STUFF BACK IN 8255
 
 0EBD  1E                                PUSH    DS              ; SAVE DATA SEGMENT VALUE
-0EBE  33 C0                             XOR     AX,AX           ; SET UP FOR ABSO SEGMENT
+0EBE  33 C0                             XOR     AX,AX           ; SET UP FOR ABS0 SEGMENT
 0EC0  8E D8                             MOV     DS,AX           ; ESTABLISH VECTOR TABLE ADDRESSING
-                                        ASSUME  DS:ABSO
+                                        ASSUME  DS:ABS0
 0EC2  C5 1E 0074 R                      LDS     BX,PARM_PTR     ; GET POINTER TO VIDEO PARMS
                                         ASSUME  DS:CODE
 0EC6  8B C7                             MOV     AX,DI           ; GET CURRENT MODE IN AX
@@ -3635,7 +3635,7 @@
 10DD  1E                                PUSH    DS
 10DE  33 F6                             XOR     SI,SI
 10E0  8E DE                             MOV     DS,SI
-                                        ASSUME  DS:ABSO
+                                        ASSUME  DS:ABS0
 10E2  C4 3E 0124 R                      LES     DI,DWORD PTR EXST ; GET THE POINTER TO THE EXTENDED
                                                                 ; SET
 10E6  26: 8A 0D                         MOV     CL,BYTE PTR ES:[DI] ; GET LENGTH BYTE
@@ -6019,7 +6019,7 @@ E6DF  A0 0005 R                         MOV     AL,MFG_TST      ; GET MFG CHECKP
 E6E2  E6 10                             OUT     10H,AL          ; OUTPUT IT TO TESTER
 E6E4  FE C8                             DEC     AL              ; DROP IT BY 1 FOR THE NEXT TEST
 E6E6  A2 0005 R                         MOV     MFG_TST,AL
-                                ASSUME  DS:ABSO
+                                ASSUME  DS:ABS0
 E6E9  1F                                POP     DS
 E6EA  58                                POP     AX
 E6EB  C3                                RET
@@ -6794,7 +6794,7 @@ E9B5  56                                PUSH    SI              ; SAVE REGISTER
 E9B6  2B C0                             SUB     AX,AX           ; ZERO TO AX
 E9B8  32 FF                             XOR     BH,BH           ; ZERO BH
 E9BA  8E D8                             MOV     DS,AX
-                                ASSUME  DS:ABSO
+                                ASSUME  DS:ABS0
 E9BC  C5 36 0078 R                      LDS     SI,DISK_POINTER ; POINT TO BLOCK
 E9C0  D1 EB                             SHR     BX,1            ; DIVIDE BX BY 2, AND SET FLAG FOR
                                                                 ; EXIT
