@@ -71,7 +71,7 @@
 000C                                    ORG     5*4
 0014                            INT5_PTR        LABEL   WORD
 0014                                    ORG     8*4
-0020                            INT_PTR         LABEL   DWORD
+0020                            INT_PTR         LABEL   WORD
 0020                                    ORG     10H*4
 0040                            VIDEO_INT       LABEL   WORD
 0040                                    ORG     1CH*4
@@ -991,7 +991,7 @@
 02FA  75 11                             JNZ     TIME_1
 02FC  C7 06 0020 R 188D R       D6:     MOV     INT_PTR,OFFSET MFG_TICK ; SET TO POINT TO MFG.
                                                                 ; ROUTINE
-0302  C7 06 0070 R 188D R               MOV     INTIC_PTR,OFFSET MFG_TICK ; ALSO SET USER TIMER INT
+0302  C7 06 0070 R 188D R               MOV     INT1C_PTR,OFFSET MFG_TICK ; ALSO SET USER TIMER INT
                                                                 ; FOR DIAGS. USE
 0308  B0 FE                             MOV     AL,0FEH
 030A  E6 21                             OUT     INTA01,AL
@@ -1538,7 +1538,7 @@
 ; --------------------------------------------------------------------------------------------------
 ; A-18
 ; --------------------------------------------------------------------------------------------------
-0626  80 FC 02                          CMP     AH,02           ; EVEN BYTE ERROR? ERR 0AXX
+0626  80 FC 02                  Q41:    CMP     AH,02           ; EVEN BYTE ERROR? ERR 0AXX
 0629  8A D9                             MOV     BL,CL
 062B  74 0B                             JE      Q42
 062D  FE C7                             INC     BH              ; MAKE INTO 0BXX ERR
@@ -1800,7 +1800,7 @@
 07C1  8E D9                             MOV     DS,CX
 07C3  C7 06 0014 R FF54 R               MOV     INT5_PTR,OFFSET PRINT_SCREEN ; PRINT SCREEN
 07C9  C7 06 0120 R 10C6 R               MOV     KEY62_PTR,OFFSET KEY62_INT ; 62 KEY CONVERSION
-07CF  C7 06 0110 R FA6E R               MOV     CSET_PTR,OFFSET CRT_CHAR_GEN ; DOT TABLE
+07CF  C7 06 0110 R FA6E R               MOV     WORD PTR CSET_PTR,OFFSET CRT_CHAR_GEN ; DOT TABLE
 07D5  C7 06 0060 R FFCB R               MOV     BASIC_PTR,OFFSET BAS_ENT ; CASSETTE BASIC ENTRY
 07DB  0E                                PUSH    CS
 07DC  58                                POP     AX
@@ -5090,6 +5090,769 @@
 1A1F  9D                                POPF                    ; RESTORE FLAGS TO ORIG SETTINGS
 1A20  C3                                RET                     ; RETURN TO CALLER
 1A21                            ERR_BEEP        ENDP
+                                ;-----------------------------------------------------------
+                                ; SET_CURSOR
+                                ;
+                                ; SET THE HARDWARE CURSOR POSITION USING VIDEO_IO.
+                                ;
+                                ; ENTRY
+                                ;       BH = DISPLAY PAGE
+                                ;       DH,DL = ROW,COLUMN
+                                ; EXIT
+                                ;       SI,DI PRESERVED
+                                ;-----------------------------------------------------------
+1A21                            SET_CURSOR      PROC    NEAR
+1A21  B4 02                             MOV     AH,2
+1A23  57                                PUSH    DI
+1A24  56                                PUSH    SI
+1A25  CD 10                             INT     10H
+1A27  5E                                POP     SI
+1A28  5F                                POP     DI
+1A29  C3                                RET
+1A2A                            SET_CURSOR      ENDP
+                                ;-----------------------------------------------------------
+                                ; PRNT3
+                                ;
+                                ; DISPLAY A FORMATTED MESSAGE STRING THROUGH VIDEO_IO.
+                                ; THE STRING IS ADDRESSED THROUGH THE FAR RETURN FRAME AND
+                                ; MAY CONTAIN CONTROL BYTES FOR CURSOR MOVEMENT, ATTRIBUTE
+                                ; CHANGES, AND STRING RESTARTS.
+                                ;
+                                ; ENTRY
+                                ;       STACK FRAME CONTAINS FAR STRING POINTER
+                                ;       DX = INITIAL ROW,COLUMN AND CONTROL FLAGS
+                                ;       BL = DEFAULT ATTRIBUTE WHEN DH BIT 7 IS CLEAR
+                                ; EXIT
+                                ;       IRET TO CALLER
+                                ;-----------------------------------------------------------
+1A2A                                    ORG     1A2AH
+1A2A                            PRNT3           PROC    FAR
+1A2A  50                                PUSH    AX
+1A2B  06                                PUSH    ES
+1A2C  55                                PUSH    BP
+1A2D  8B EC                             MOV     BP,SP
+1A2F  8B 46 08                          MOV     AX,[BP+8]
+1A32  8E C0                             MOV     ES,AX
+1A34                                    ASSUME  ES:NOTHING
+1A34  5D                                POP     BP
+1A35  53                                PUSH    BX
+1A36  51                                PUSH    CX
+1A37  55                                PUSH    BP
+1A38  56                                PUSH    SI
+1A39  57                                PUSH    DI
+1A3A  1E                                PUSH    DS
+1A3B  52                                PUSH    DX
+1A3C  E8 138B R                         CALL    DDS
+1A3F  8A 3E 0062 R                      MOV     BH,ACTIVE_PAGE
+1A43  33 C9                             XOR     CX,CX
+1A45                            LOC_F1A45:
+1A45  BF 0001                           MOV     DI,1
+1A48  26: 8A 46 00                      MOV     AL,ES:[BP+0]
+1A4C  32 E4                             XOR     AH,AH
+1A4E  8B F0                             MOV     SI,AX
+1A50  F6 C6 80                          TEST    DH,80H
+1A53  75 02                             JNZ     SHORT LOC_F1A57
+1A55  B3 07                             MOV     BL,7
+1A57                            LOC_F1A57:
+1A57  F6 C6 40                          TEST    DH,40H
+1A5A  74 40                             JZ      SHORT LOC_F1A9C
+1A5C  46                                INC     SI
+1A5D  81 E2 1F7F                        AND     DX,1F7FH
+1A61                            LOC_F1A61:
+1A61  FE C1                             INC     CL
+1A63  4F                                DEC     DI
+1A64  F7 D6                             NOT     SI
+1A66  83 C6 02                          ADD     SI,2
+1A69                            LOC_F1A69:
+1A69  47                                INC     DI
+1A6A  46                                INC     SI
+1A6B  74 70                             JZ      SHORT LOC_F1ADD
+1A6D  26: 8A 03                         MOV     AL,ES:[BP+DI]
+1A70  3C 0D                             CMP     AL,0DH
+1A72  75 07                             JNZ     SHORT LOC_F1A7B
+1A74  80 C6 01                          ADD     DH,1
+1A77  B2 00                             MOV     DL,0
+1A79  EB EE                             JMP     SHORT LOC_F1A69
+1A7B                            LOC_F1A7B:
+1A7B  3C 0A                             CMP     AL,0AH
+1A7D  75 04                             JNZ     SHORT LOC_F1A83
+1A7F  FE C6                             INC     DH
+1A81  EB E6                             JMP     SHORT LOC_F1A69
+1A83                            LOC_F1A83:
+1A83  3C 0B                             CMP     AL,0BH
+1A85  75 0B                             JNZ     SHORT LOC_F1A92
+1A87  FE C6                             INC     DH
+1A89  46                                INC     SI
+1A8A  47                                INC     DI
+1A8B  26: 8A 03                         MOV     AL,ES:[BP+DI]
+1A8E  02 D0                             ADD     DL,AL
+1A90  EB D7                             JMP     SHORT LOC_F1A69
+1A92                            LOC_F1A92:
+1A92  3C 0C                             CMP     AL,0CH
+1A94  75 49                             JNZ     SHORT LOC_F1ADF
+1A96  47                                INC     DI
+1A97  47                                INC     DI
+1A98  03 EF                             ADD     BP,DI
+1A9A  EB A9                             JMP     SHORT LOC_F1A45
+1A9C                            LOC_F1A9C:
+1A9C  81 E2 1F7F                        AND     DX,1F7FH
+1AA0                            LOC_F1AA0:
+1AA0  26: 8A 0A                         MOV     CL,ES:[BP+SI]
+1AA3  46                                INC     SI
+1AA4  80 F9 00                          CMP     CL,0
+1AA7  74 46                             JZ      SHORT LOC_F1AEF
+1AA9  7C 07                             JL      SHORT LOC_F1AB2
+1AAB  80 F9 51                          CMP     CL,51H
+1AAE  7C 2F                             JL      SHORT LOC_F1ADF
+1AB0  EB 1B                             JMP     SHORT LOC_F1ACD
+1AB2                            LOC_F1AB2:
+1AB2  FE C1                             INC     CL
+1AB4  74 AB                             JZ      SHORT LOC_F1A61
+1AB6  FE C1                             INC     CL
+1AB8  74 4E                             JZ      SHORT LOC_F1B08
+1ABA  FE C1                             INC     CL
+1ABC  74 60                             JZ      SHORT LOC_F1B1E
+1ABE  FE C1                             INC     CL
+1AC0  74 1B                             JZ      SHORT LOC_F1ADD
+1AC2  FE C1                             INC     CL
+1AC4  74 3E                             JZ      SHORT LOC_F1B04
+1AC6  FE C1                             INC     CL
+1AC8  74 60                             JZ      SHORT LOC_F1B2A
+1ACA  83 E9 06                          SUB     CX,6
+1ACD                            LOC_F1ACD:
+1ACD  80 E9 51                          SUB     CL,51H
+1AD0  80 F9 50                          CMP     CL,50H
+1AD3  7C 38                             JL      SHORT LOC_F1B0D
+1AD5  80 E9 50                          SUB     CL,50H
+1AD8  80 F9 51                          CMP     CL,51H
+1ADB  7C 39                             JL      SHORT LOC_F1B16
+1ADD                            LOC_F1ADD:
+1ADD  EB 50                             JMP     SHORT LOC_F1B2F
+1ADF                            LOC_F1ADF:
+1ADF  E8 1A21 R                         CALL    SET_CURSOR
+1AE2  57                                PUSH    DI
+1AE3  56                                PUSH    SI
+1AE4  B4 09                             MOV     AH,9
+1AE6  26: 8A 03                         MOV     AL,ES:[BP+DI]
+1AE9  02 D1                             ADD     DL,CL
+1AEB  CD 10                             INT     10H
+1AED  5E                                POP     SI
+1AEE  5F                                POP     DI
+1AEF                            LOC_F1AEF:
+1AEF  83 FE 00                          CMP     SI,0
+1AF2  7D 03                             JGE     SHORT LOC_F1AF7
+1AF4  E9 1A69 R                         JMP     LOC_F1A69
+1AF7                            LOC_F1AF7:
+1AF7  26: 8A 46 00                      MOV     AL,ES:[BP+0]
+1AFB  32 E4                             XOR     AH,AH
+1AFD  47                                INC     DI
+1AFE  3B C7                             CMP     AX,DI
+1B00  7F 9E                             JG      SHORT LOC_F1AA0
+1B02  EB 04                             JMP     SHORT LOC_F1B08
+1B04                            LOC_F1B04:
+1B04  B2 00                             MOV     DL,0
+1B06  FE C6                             INC     DH
+1B08                            LOC_F1B08:
+1B08  BF 0001                           MOV     DI,1
+1B0B  EB 93                             JMP     SHORT LOC_F1AA0
+1B0D                            LOC_F1B0D:
+1B0D  80 E9 28                          SUB     CL,28H
+1B10  02 D1                             ADD     DL,CL
+1B12  FE C6                             INC     DH
+1B14  EB 8A                             JMP     SHORT LOC_F1AA0
+1B16                            LOC_F1B16:
+1B16  26: 8A 1B                         MOV     BL,ES:[BP+DI]
+1B19  47                                INC     DI
+1B1A  74 D3                             JZ      SHORT LOC_F1AEF
+1B1C  EB C1                             JMP     SHORT LOC_F1ADF
+1B1E                            LOC_F1B1E:
+1B1E  26: 8A 22                         MOV     AH,ES:[BP+SI]
+1B21  46                                INC     SI
+1B22  80 EC 28                          SUB     AH,28H
+1B25  02 F4                             ADD     DH,AH
+1B27  E9 1AA0 R                         JMP     LOC_F1AA0
+1B2A                            LOC_F1B2A:
+1B2A  03 EE                             ADD     BP,SI
+1B2C  E9 1A45 R                         JMP     LOC_F1A45
+1B2F                            LOC_F1B2F:
+1B2F  E8 1A21 R                         CALL    SET_CURSOR
+1B32  5B                                POP     BX
+1B33  53                                PUSH    BX
+1B34  F6 C7 20                          TEST    BH,20H
+1B37  74 11                             JZ      SHORT LOC_F1B4A
+1B39  F6 C7 80                          TEST    BH,80H
+1B3C  74 07                             JZ      SHORT LOC_F1B45
+1B3E  B3 03                             MOV     BL,3
+1B40  E8 FF31 R                         CALL    BEEP
+1B43  EB 05                             JMP     SHORT LOC_F1B4A
+1B45                            LOC_F1B45:
+1B45  B3 01                             MOV     BL,1
+1B47  E8 FF31 R                         CALL    BEEP
+1B4A                            LOC_F1B4A:
+1B4A  5B                                POP     BX
+1B4B  F6 C3 80                          TEST    BL,80H
+1B4E  74 0A                             JZ      SHORT LOC_F1B5A
+1B50  B4 00                             MOV     AH,0
+1B52  CD 16                             INT     16H
+1B54  3C 59                             CMP     AL,59H
+1B56  F8                                CLC
+1B57  75 01                             JNZ     SHORT LOC_F1B5A
+1B59  F9                                STC
+1B5A                            LOC_F1B5A:
+1B5A  1F                                POP     DS
+1B5B  5F                                POP     DI
+1B5C  5E                                POP     SI
+1B5D  5D                                POP     BP
+1B5E  59                                POP     CX
+1B5F  5B                                POP     BX
+1B60  07                                POP     ES
+1B61  58                                POP     AX
+1B62  CF                                IRET
+1B63                            PRNT3           ENDP
+
+                                ;-----------------------------------------------------------
+                                ; LOCATEI
+                                ;
+                                ; LOCATE A DISPLAY PAGE WITH ROOM FOR THE REQUESTED MESSAGE.
+                                ; IF THE CURRENT PAGE CANNOT FIT THE MESSAGE, ADVANCE TO AN
+                                ; EARLIER PAGE, DISPLAY A SHORT PROMPT, AND SELECT THAT PAGE.
+                                ;
+                                ; ENTRY
+                                ;       AL = MESSAGE WIDTH NEEDED
+                                ; EXIT
+                                ;       DX = ROW,COLUMN FOR MESSAGE
+                                ;       IRET TO CALLER
+                                ;-----------------------------------------------------------
+1B63                            LOCATEI         PROC    FAR
+1B63  53                                PUSH    BX
+1B64  55                                PUSH    BP
+1B65  50                                PUSH    AX
+1B66  B7 07                             MOV     BH,7
+1B68                            LOC_F1B68:
+1B68  B4 03                             MOV     AH,3
+1B6A  CD 10                             INT     10H
+1B6C  58                                POP     AX
+1B6D  50                                PUSH    AX
+1B6E  80 FE 14                          CMP     DH,14H
+1B71  7C 04                             JL      SHORT LOC_F1B77
+1B73  FE CF                             DEC     BH
+1B75  EB F1                             JMP     SHORT LOC_F1B68
+1B77                            LOC_F1B77:
+1B77  B4 26                             MOV     AH,26H
+1B79  2A E2                             SUB     AH,DL
+1B7B  3A C4                             CMP     AL,AH
+1B7D  7C 1D                             JL      SHORT LOC_F1B9C
+1B7F  B2 02                             MOV     DL,2
+1B81  80 C6 0C                          ADD     DH,0CH
+1B84  80 FE 14                          CMP     DH,14H
+1B87  7C 13                             JL      SHORT LOC_F1B9C
+1B89  BA 1525                           MOV     DX,1525H
+1B8C  BD 1BA0 R                         MOV     BP,OFFSET LOCATE_MSG
+1B8F  CD 82                             INT     82H
+1B91  FE CF                             DEC     BH
+1B93  8A C7                             MOV     AL,BH
+1B95  B4 05                             MOV     AH,5
+1B97  CD 10                             INT     10H
+1B99  BA 0102                           MOV     DX,0102H
+1B9C                            LOC_F1B9C:
+1B9C  58                                POP     AX
+1B9D  5D                                POP     BP
+1B9E  5B                                POP     BX
+1B9F  CF                                IRET
+1BA0                            LOCATEI         ENDP
+
+1BA0  02 2A FF 00 FC             LOCATE_MSG      DB      02H,02AH,0FFH,000H,0FCH
+
+                                ;-----------------------------------------------------------
+                                ; JOYSTICK
+                                ;
+                                ; SERVICE THE PCJR JOYSTICK DEMONSTRATION/TEST INTERRUPT.
+                                ; THIS ROUTINE READS THE GAME I/O PORT, DISPLAYS STICK AND
+                                ; BUTTON STATE THROUGH PRNT3, AND ACCEPTS KEYBOARD CONTROL
+                                ; INPUT FOR THE ON-SCREEN TEST DISPLAY.
+                                ;
+                                ; ENTRY
+                                ;       AH = JOYSTICK SERVICE FUNCTION
+                                ; EXIT
+                                ;       IRET OR FAR RETURN, DEPENDING ON SERVICE PATH
+                                ;-----------------------------------------------------------
+1BA5                            JOYSTICK        PROC    FAR
+1BA5  33 DB                             XOR     BX,BX
+1BA7  0A E4                             OR      AH,AH
+1BA9  74 32                             JZ      SHORT LOC_F1BDD
+1BAB  80 FC 01                          CMP     AH,1
+1BAE  74 31                             JZ      SHORT LOC_F1BE1
+1BB0  80 FC 36                          CMP     AH,36H
+1BB3  74 55                             JZ      SHORT LOC_F1C0A
+1BB5  80 FC 45                          CMP     AH,45H
+1BB8  74 30                             JZ      SHORT LOC_F1BEA
+1BBA  80 FC FF                          CMP     AH,0FFH
+1BBD  74 2B                             JZ      SHORT LOC_F1BEA
+1BBF  B3 5A                             MOV     BL,5AH
+1BC1  80 FC 37                          CMP     AH,37H
+1BC4  74 44                             JZ      SHORT LOC_F1C0A
+1BC6  E9 1CE5 R                         JMP     LOCRET_F1CE5
+
+1BC9  6B 03 02 00               JOY_LIMITS1     DW      036BH,0002H
+1BCD  28 00 12 00               JOY_LIMITS2     DW      0028H,0012H
+1BD1  46 00 25 00                               DW      0046H,0025H
+1BD5  6D 00 3C 00                               DW      006DH,003CH
+1BD9  8D 00 4F 00                               DW      008DH,004FH
+
+1BDD                            LOC_F1BDD:
+1BDD  E8 1CE6 R                         CALL    JOY_SHOW_TITLE
+1BE0  CF                                IRET
+1BE1                            LOC_F1BE1:
+1BE1  E8 1CE6 R                         CALL    JOY_SHOW_TITLE
+1BE4  BD 1DFA R                         MOV     BP,OFFSET JOY_PROMPT
+1BE7  CD 82                             INT     82H
+1BE9  CF                                IRET
+1BEA                            LOC_F1BEA:
+1BEA  0E                                PUSH    CS
+1BEB  1F                                POP     DS
+1BEC                                    ASSUME  DS:CODE
+1BEC  33 DB                             XOR     BX,BX
+1BEE  B4 01                             MOV     AH,1
+1BF0  BE 1BCD R                         MOV     SI,OFFSET JOY_LIMITS2
+1BF3                            LOC_F1BF3:
+1BF3  E8 1CFD R                         CALL    JOY_READ_AXIS
+1BF6  E8 1D59 R                         CALL    JOY_ACCUM_AXIS
+1BF9  83 C6 04                          ADD     SI,4
+1BFC  D0 C4                             ROL     AH,1
+1BFE  F6 C4 10                          TEST    AH,10H
+1C01  74 F0                             JZ      SHORT LOC_F1BF3
+1C03  8A F7                             MOV     DH,BH
+1C05  0A F3                             OR      DH,BL
+1C07  E9 1CE1 R                         JMP     LOC_F1CE1
+1C0A                            LOC_F1C0A:
+1C0A  B8 0001                           MOV     AX,1
+1C0D  CD 10                             INT     10H
+1C0F  0E                                PUSH    CS
+1C10  1F                                POP     DS
+1C11  B4 01                             MOV     AH,1
+1C13  B5 20                             MOV     CH,20H
+1C15  CD 10                             INT     10H
+1C17  BA 0400                           MOV     DX,0400H
+1C1A  BD 1D85 R                         MOV     BP,OFFSET JOY_SCREEN
+1C1D  CD 82                             INT     82H
+1C1F  B9 000D                           MOV     CX,0DH
+1C22  BA 0800                           MOV     DX,0800H
+1C25  BD 1DBD R                         MOV     BP,OFFSET JOY_REPEAT
+1C28                            LOC_F1C28:
+1C28  CD 82                             INT     82H
+1C2A  E2 FC                             LOOP    LOC_F1C28
+1C2C  80 FB 5A                          CMP     BL,5AH
+1C2F  75 03                             JNZ     SHORT LOC_F1C34
+1C31  E9 1E32 R                         JMP     LOC_F1E32
+1C34                            LOC_F1C34:
+1C34  BD 1DCA R                         MOV     BP,OFFSET JOY_STATUS
+1C37  B4 01                             MOV     AH,1
+1C39                            LOC_F1C39:
+1C39  8A D0                             MOV     DL,AL
+1C3B  E8 1CFD R                         CALL    JOY_READ_AXIS
+1C3E  BE 1BC9 R                         MOV     SI,OFFSET JOY_LIMITS1
+1C41  E8 1D59 R                         CALL    JOY_ACCUM_AXIS
+1C44  E8 1D22 R                         CALL    JOY_AXIS_BUCKET
+1C47  D0 C4                             ROL     AH,1
+1C49  F6 C4 0A                          TEST    AH,0AH
+1C4C  75 EB                             JNZ     SHORT LOC_F1C39
+1C4E  8A F0                             MOV     DH,AL
+1C50  81 C2 8817                        ADD     DX,8817H
+1C54  F6 C4 10                          TEST    AH,10H
+1C57  9C                                PUSHF
+1C58  74 03                             JZ      SHORT LOC_F1C5D
+1C5A  80 EA 13                          SUB     DL,13H
+1C5D                            LOC_F1C5D:
+1C5D  53                                PUSH    BX
+1C5E  80 FF 11                          CMP     BH,11H
+1C61  B3 0F                             MOV     BL,0FH
+1C63  75 02                             JNZ     SHORT LOC_F1C67
+1C65  B3 00                             MOV     BL,0
+1C67                            LOC_F1C67:
+1C67  E8 1D38 R                         CALL    JOY_CLEAR_WINDOW
+1C6A  CD 82                             INT     82H
+1C6C  5B                                POP     BX
+1C6D  9D                                POPF
+1C6E  74 C9                             JZ      SHORT LOC_F1C39
+1C70  53                                PUSH    BX
+1C71  BA 0201                           MOV     DX,0201H
+1C74  EC                                IN      AL,DX
+1C75  BA 821F                           MOV     DX,821FH
+1C78  BD 1DCD R                         MOV     BP,OFFSET JOY_MARK
+1C7B                            LOC_F1C7B:
+1C7B  B3 09                             MOV     BL,9
+1C7D  84 C4                             TEST    AL,AH
+1C7F  75 02                             JNZ     SHORT LOC_F1C83
+1C81  B3 00                             MOV     BL,0
+1C83                            LOC_F1C83:
+1C83  CD 82                             INT     82H
+1C85  80 CE 80                          OR      DH,80H
+1C88  D0 C4                             ROL     AH,1
+1C8A  72 08                             JB      SHORT LOC_F1C94
+1C8C  F6 C4 40                          TEST    AH,40H
+1C8F  74 EA                             JZ      SHORT LOC_F1C7B
+1C91  4A                                DEC     DX
+1C92  EB E7                             JMP     SHORT LOC_F1C7B
+1C94                            LOC_F1C94:
+1C94  5B                                POP     BX
+1C95  BA 2A2A                           MOV     DX,2A2AH
+1C98  0B DB                             OR      BX,BX
+1C9A  74 3D                             JZ      SHORT LOC_F1CD9
+1C9C  F7 C3 8888                        TEST    BX,8888H
+1CA0  74 05                             JZ      SHORT LOC_F1CA7
+1CA2  BA 4320                           MOV     DX,4320H
+1CA5  EB 3A                             JMP     SHORT LOC_F1CE1
+1CA7                            LOC_F1CA7:
+1CA7  81 FB 1111                        CMP     BX,1111H
+1CAB  75 05                             JNZ     SHORT LOC_F1CB2
+1CAD  BA 4141                           MOV     DX,4141H
+1CB0  EB 2F                             JMP     SHORT LOC_F1CE1
+1CB2                            LOC_F1CB2:
+1CB2  80 FB 11                          CMP     BL,11H
+1CB5  75 05                             JNZ     SHORT LOC_F1CBC
+1CB7  B2 41                             MOV     DL,41H
+1CB9  80 E3 CC                          AND     BL,0CCH
+1CBC                            LOC_F1CBC:
+1CBC  80 FF 11                          CMP     BH,11H
+1CBF  75 05                             JNZ     SHORT LOC_F1CC6
+1CC1  B6 41                             MOV     DH,41H
+1CC3  80 E7 CC                          AND     BH,0CCH
+1CC6                            LOC_F1CC6:
+1CC6  0A DB                             OR      BL,BL
+1CC8  74 02                             JZ      SHORT LOC_F1CCC
+1CCA  B2 42                             MOV     DL,42H
+1CCC                            LOC_F1CCC:
+1CCC  0A FF                             OR      BH,BH
+1CCE  74 04                             JZ      SHORT LOC_F1CD4
+1CD0  B6 42                             MOV     DH,42H
+1CD2  EB 0D                             JMP     SHORT LOC_F1CE1
+1CD4                            LOC_F1CD4:
+1CD4  80 FA 42                          CMP     DL,42H
+1CD7  74 08                             JZ      SHORT LOC_F1CE1
+1CD9                            LOC_F1CD9:
+1CD9  E8 1CF0 R                         CALL    JOY_TEST_BREAK
+1CDC  75 03                             JNZ     SHORT LOC_F1CE1
+1CDE  E9 1C34 R                         JMP     LOC_F1C34
+1CE1                            LOC_F1CE1:
+1CE1  F9                                STC
+1CE2  CA 0002                           RET     2
+1CE5                            LOCRET_F1CE5:
+1CE5  CF                                IRET
+1CE6                            JOYSTICK        ENDP
+
+1CE6                            JOY_SHOW_TITLE  PROC    NEAR
+1CE6  BD 1DD6 R                         MOV     BP,OFFSET JOY_TITLE
+1CE9  B0 03                             MOV     AL,3
+1CEB  CD 81                             INT     81H
+1CED  CD 82                             INT     82H
+1CEF  C3                                RET
+1CF0                            JOY_SHOW_TITLE  ENDP
+
+1CF0                            JOY_TEST_BREAK  PROC    NEAR
+1CF0  50                                PUSH    AX
+1CF1  1E                                PUSH    DS
+1CF2  E8 138B R                         CALL    DDS
+1CF5  A0 0071 R                         MOV     AL,BIOS_BREAK
+1CF8  1F                                POP     DS
+1CF9  A8 80                             TEST    AL,80H
+1CFB  58                                POP     AX
+1CFC  C3                                RET
+1CFD                            JOY_TEST_BREAK  ENDP
+
+1CFD                            JOY_READ_AXIS   PROC    NEAR
+1CFD  52                                PUSH    DX
+1CFE  BA 0201                           MOV     DX,0201H
+1D01  B9 036B                           MOV     CX,36BH
+1D04                            LOC_F1D04:
+1D04  EC                                IN      AL,DX
+1D05  84 C4                             TEST    AL,AH
+1D07  E0 FB                             LOOPNE  LOC_F1D04
+1D09  B9 036B                           MOV     CX,36BH
+1D0C  FA                                CLI
+1D0D  EE                                OUT     DX,AL
+1D0E                            LOC_F1D0E:
+1D0E  EC                                IN      AL,DX
+1D0F  84 C4                             TEST    AL,AH
+1D11  E0 FB                             LOOPNE  LOC_F1D0E
+1D13  FB                                STI
+1D14  E3 08                             JCXZ    SHORT LOC_F1D1E
+1D16  F7 D9                             NEG     CX
+1D18  81 C1 036B                        ADD     CX,36BH
+1D1C  EB 02                             JMP     SHORT LOC_F1D20
+1D1E                            LOC_F1D1E:
+1D1E  B0 FF                             MOV     AL,0FFH
+1D20                            LOC_F1D20:
+1D20  5A                                POP     DX
+1D21  C3                                RET
+1D22                            JOY_READ_AXIS   ENDP
+
+1D22                            JOY_AXIS_BUCKET PROC    NEAR
+1D22  53                                PUSH    BX
+1D23  BB 000A                           MOV     BX,0AH
+1D26  B0 00                             MOV     AL,0
+1D28                            LOC_F1D28:
+1D28  3B CB                             CMP     CX,BX
+1D2A  7C 0A                             JL      SHORT LOC_F1D36
+1D2C  3C 0C                             CMP     AL,0CH
+1D2E  74 06                             JZ      SHORT LOC_F1D36
+1D30  83 C3 08                          ADD     BX,8
+1D33  40                                INC     AX
+1D34  EB F2                             JMP     SHORT LOC_F1D28
+1D36                            LOC_F1D36:
+1D36  5B                                POP     BX
+1D37  C3                                RET
+1D38                            JOY_AXIS_BUCKET ENDP
+
+1D38                            JOY_CLEAR_WINDOW PROC   NEAR
+1D38  55                                PUSH    BP
+1D39  52                                PUSH    DX
+1D3A  51                                PUSH    CX
+1D3B  53                                PUSH    BX
+1D3C  50                                PUSH    AX
+1D3D  B8 0600                           MOV     AX,600H
+1D40  B7 07                             MOV     BH,7
+1D42  B9 0804                           MOV     CX,804H
+1D45  80 FA 14                          CMP     DL,14H
+1D48  BA 1410                           MOV     DX,1410H
+1D4B  7C 04                             JL      SHORT LOC_F1D51
+1D4D  B1 17                             MOV     CL,17H
+1D4F  B2 23                             MOV     DL,23H
+1D51                            LOC_F1D51:
+1D51  CD 10                             INT     10H
+1D53  58                                POP     AX
+1D54  5B                                POP     BX
+1D55  59                                POP     CX
+1D56  5A                                POP     DX
+1D57  5D                                POP     BP
+1D58  C3                                RET
+1D59                            JOY_CLEAR_WINDOW ENDP
+
+1D59                            JOY_ACCUM_AXIS  PROC    NEAR
+1D59  51                                PUSH    CX
+1D5A  3C FF                             CMP     AL,0FFH
+1D5C  75 05                             JNZ     SHORT LOC_F1D63
+1D5E  80 CB 01                          OR      BL,1
+1D61  EB 1C                             JMP     SHORT LOC_F1D7F
+1D63                            LOC_F1D63:
+1D63  81 F9 036B                        CMP     CX,36BH
+1D67  7E 05                             JLE     SHORT LOC_F1D6E
+1D69  80 CB 04                          OR      BL,4
+1D6C  EB 11                             JMP     SHORT LOC_F1D7F
+1D6E                            LOC_F1D6E:
+1D6E  3B 0C                             CMP     CX,[SI]
+1D70  7E 05                             JLE     SHORT LOC_F1D77
+1D72                            LOC_F1D72:
+1D72  80 CB 02                          OR      BL,2
+1D75  EB 08                             JMP     SHORT LOC_F1D7F
+1D77                            LOC_F1D77:
+1D77  3B 4C 02                          CMP     CX,[SI+2]
+1D7A  7D 03                             JGE     SHORT LOC_F1D7F
+1D7C  80 CB 08                          OR      BL,8
+1D7F                            LOC_F1D7F:
+1D7F  B1 04                             MOV     CL,4
+1D81  D3 CB                             ROR     BX,CL
+1D83  59                                POP     CX
+1D84  C3                                RET
+1D85                            JOY_ACCUM_AXIS  ENDP
+
+1D85  05 07 20 09 DB A4 A7 A4  JOY_SCREEN      DB      05H,07H,20H,09H,0DBH,0A4H,0A7H,0A4H
+1D8D  A7 A5 A7 A4 A7 FB FB FB                  DB      0A7H,0A5H,0A7H,0A4H,0A7H,0FBH,0FBH,0FBH
+1D95  FA 07 20 C9 C8 CD BB BC                  DB      0FAH,07H,20H,0C9H,0C8H,0CDH,0BBH,0BCH
+1D9D  03 01 00 0D 01 00 04 01                  DB      03H,01H,00H,0DH,01H,00H,04H,01H
+1DA5  00 0D 01 00 03 FD 35 FB                  DB      00H,0DH,01H,00H,03H,0FDH,35H,0FBH
+1DAD  03 00 01 0D 00 01 04 00                  DB      03H,00H,01H,0DH,00H,01H,04H,00H
+1DB5  01 0D 00 01 03 FB 85 FC                  DB      01H,0DH,00H,01H,03H,0FBH,85H,0FCH
+1DBD  03 20 BA 03 01 0D 01 04  JOY_REPEAT      DB      03H,20H,0BAH,03H,01H,0DH,01H,04H
+1DC5  01 0D 01 FB FC                           DB      01H,0DH,01H,0FBH,0FCH
+1DCA  02 0F FF                  JOY_STATUS      DB      02H,0FH,0FFH
+1DCD  02 DB 06 73 06 6A FD 26  JOY_MARK        DB      02H,0DBH,06H,73H,06H,6AH,0FDH,26H
+1DD5  FC                                        DB      0FCH
+1DD6  15 0A 0A 0A 0B 02 FE 0B  JOY_TITLE       DB      15H,0AH,0AH,0AH,0BH,02H,0FEH,0BH
+1DDE  FE DA C1 BF 0B FD C0 C4                  DB      0FEH,0DAH,0C1H,0BFH,0BH,0FDH,0C0H,0C4H
+1DE6  D9 0A 0B FD 0C FF                        DB      0D9H,0AH,0BH,0FDH,0CH,0FFH
+1DEC  07 07 20 87 36 07 20 A2  JOY_LOCATE_MSG  DB      07H,07H,20H,87H,36H,07H,20H,0A2H
+1DF4  A2 A2 FD 1F 7B FC                        DB      0A2H,0A2H,0FDH,1FH,7BH,0FCH
+1DFA  05 87 20 45 20 FD 2F 74  JOY_PROMPT      DB      05H,87H,20H,45H,20H,0FDH,2FH,74H
+1E02  A2 01 01 FD 1F 7B FC                     DB      0A2H,01H,01H,0FDH,1FH,7BH,0FCH
+1E09  48 4B 47 4D 49 50 4F 51  JOY_KEY_SCANS   DB      48H,4BH,47H,4DH,49H,50H,4FH,51H
+1E11  1C 39 11 1E 10 1F 12 2C                  DB      1CH,39H,11H,1EH,10H,1FH,12H,2CH
+1E19  2B 2D 01 0F                              DB      2BH,2DH,01H,0FH
+1E1D  01 02 03 04 05 08 0A 0C  JOY_KEY_MASKS   DB      01H,02H,03H,04H,05H,08H,0AH,0CH
+1E25  10 20 41 42 43 44 45 48                  DB      10H,20H,41H,42H,43H,44H,45H,48H
+1E2D  4A 4C 50 60 00                           DB      4AH,4CH,50H,60H,00H
+
+1E32                            LOC_F1E32:
+1E32  E8 138B R                         CALL    DDS
+1E35  1E                                PUSH    DS
+1E36  C6 06 0012 00                     MOV     BYTE PTR DS:[12H],0
+1E3B  B8 0050                           MOV     AX,50H
+1E3E  8E D8                             MOV     DS,AX
+1E40                                    ASSUME  DS:NOTHING
+1E40  1E                                PUSH    DS
+1E41  07                                POP     ES
+1E42                                    ASSUME  ES:NOTHING
+1E42  B9 0006                           MOV     CX,6
+1E45  B0 01                             MOV     AL,1
+1E47  BF 0029                           MOV     DI,29H
+1E4A  F3 AB                             REP     STOSW
+1E4C  EB 06                             JMP     SHORT LOC_F1E54
+1E4E                            LOC_F1E4E:
+1E4E  B4 01                             MOV     AH,1
+1E50  CD 16                             INT     16H
+1E52  75 03                             JNZ     SHORT LOC_F1E57
+1E54                            LOC_F1E54:
+1E54  E9 1EF1 R                         JMP     LOC_F1EF1
+1E57                            LOC_F1E57:
+1E57  B4 00                             MOV     AH,0
+1E59  CD 16                             INT     16H
+1E5B  8A C4                             MOV     AL,AH
+1E5D  B9 0015                           MOV     CX,15H
+1E60  FC                                CLD
+1E61  BF 1E09 R                         MOV     DI,OFFSET JOY_KEY_SCANS
+1E64  0E                                PUSH    CS
+1E65  07                                POP     ES
+1E66                                    ASSUME  ES:CODE
+1E66  F2 AE                             REPNE  SCASB
+1E68  8B C7                             MOV     AX,DI
+1E6A  2D 1E09 R                         SUB     AX,OFFSET JOY_KEY_SCANS
+1E6D  48                                DEC     AX
+1E6E  BB 1E1D R                         MOV     BX,OFFSET JOY_KEY_MASKS
+1E71  2E: D7                            XLAT    CS:JOY_KEY_MASKS
+1E73  BB 0029                           MOV     BX,29H
+1E76  A8 40                             TEST    AL,40H
+1E78  9C                                PUSHF
+1E79  74 03                             JZ      SHORT LOC_F1E7E
+1E7B  83 C3 06                          ADD     BX,6
+1E7E                            LOC_F1E7E:
+1E7E  BA 8C1B                           MOV     DX,8C1BH
+1E81  A8 01                             TEST    AL,1
+1E83  74 02                             JZ      SHORT LOC_F1E87
+1E85  B6 88                             MOV     DH,88H
+1E87                            LOC_F1E87:
+1E87  A8 08                             TEST    AL,8
+1E89  74 02                             JZ      SHORT LOC_F1E8D
+1E8B  B6 90                             MOV     DH,90H
+1E8D                            LOC_F1E8D:
+1E8D  A8 04                             TEST    AL,4
+1E8F  74 02                             JZ      SHORT LOC_F1E93
+1E91  B2 1F                             MOV     DL,1FH
+1E93                            LOC_F1E93:
+1E93  A8 02                             TEST    AL,2
+1E95  74 02                             JZ      SHORT LOC_F1E99
+1E97  B2 17                             MOV     DL,17H
+1E99                            LOC_F1E99:
+1E99  81 FA 8C1B                        CMP     DX,8C1BH
+1E9D  74 21                             JZ      SHORT LOC_F1EC0
+1E9F  9D                                POPF
+1EA0  9C                                PUSHF
+1EA1  74 03                             JZ      SHORT LOC_F1EA6
+1EA3  80 EA 13                          SUB     DL,13H
+1EA6                            LOC_F1EA6:
+1EA6  39 57 0C                          CMP     [BX+0CH],DX
+1EA9  74 11                             JZ      SHORT LOC_F1EBC
+1EAB  E8 1D38 R                         CALL    JOY_CLEAR_WINDOW
+1EAE  BD 1F5C R                         MOV     BP,OFFSET JOY_MOVE_MARK
+1EB1  52                                PUSH    DX
+1EB2  53                                PUSH    BX
+1EB3  B3 0E                             MOV     BL,0EH
+1EB5  CD 82                             INT     82H
+1EB7  5B                                POP     BX
+1EB8  5A                                POP     DX
+1EB9  89 57 0C                          MOV     [BX+0CH],DX
+1EBC                            LOC_F1EBC:
+1EBC  C7 07 05FF                        MOV     WORD PTR [BX],5FFH
+1EC0                            LOC_F1EC0:
+1EC0  BA 821F                           MOV     DX,821FH
+1EC3  BD 1DCD R                         MOV     BP,OFFSET JOY_MARK
+1EC6  9D                                POPF
+1EC7  74 02                             JZ      SHORT LOC_F1ECB
+1EC9  B2 0C                             MOV     DL,0CH
+1ECB                            LOC_F1ECB:
+1ECB  A8 10                             TEST    AL,10H
+1ECD  74 0D                             JZ      SHORT LOC_F1EDC
+1ECF  53                                PUSH    BX
+1ED0  B3 00                             MOV     BL,0
+1ED2  CD 82                             INT     82H
+1ED4  5B                                POP     BX
+1ED5  C7 47 02 05FF                     MOV     WORD PTR [BX+2],5FFH
+1EDA  EB 03                             JMP     SHORT LOC_F1EDF
+1EDC                            LOC_F1EDC:
+1EDC  80 EA 09                          SUB     DL,9
+1EDF                            LOC_F1EDF:
+1EDF  A8 20                             TEST    AL,20H
+1EE1  74 0E                             JZ      SHORT LOC_F1EF1
+1EE3  53                                PUSH    BX
+1EE4  B3 00                             MOV     BL,0
+1EE6  80 CE 80                          OR      DH,80H
+1EE9  CD 82                             INT     82H
+1EEB  5B                                POP     BX
+1EEC  C7 47 04 05FF                     MOV     WORD PTR [BX+4],5FFH
+1EF1                            LOC_F1EF1:
+1EF1  B9 0004                           MOV     CX,4
+1EF4  BB 002B                           MOV     BX,2BH
+1EF7  BA 821F                           MOV     DX,821FH
+1EFA  BD 1DCD R                         MOV     BP,OFFSET JOY_MARK
+1EFD                            LOC_F1EFD:
+1EFD  FF 0F                             DEC     WORD PTR [BX]
+1EFF  75 0B                             JNZ     SHORT LOC_F1F0C
+1F01  53                                PUSH    BX
+1F02  B3 09                             MOV     BL,9
+1F04  CD 82                             INT     82H
+1F06  5B                                POP     BX
+1F07  80 CE 80                          OR      DH,80H
+1F0A  EB 03                             JMP     SHORT LOC_F1F0F
+1F0C                            LOC_F1F0C:
+1F0C  80 EA 09                          SUB     DL,9
+1F0F                            LOC_F1F0F:
+1F0F  80 FA 0D                          CMP     DL,0DH
+1F12  75 03                             JNZ     SHORT LOC_F1F17
+1F14  4A                                DEC     DX
+1F15  43                                INC     BX
+1F16  43                                INC     BX
+1F17                            LOC_F1F17:
+1F17  43                                INC     BX
+1F18  43                                INC     BX
+1F19  E2 E2                             LOOP    LOC_F1EFD
+1F1B  83 EB 0C                          SUB     BX,0CH
+1F1E  B1 02                             MOV     CL,2
+1F20  BD 1F5C R                         MOV     BP,OFFSET JOY_MOVE_MARK
+1F23  BA 0C1B                           MOV     DX,0C1BH
+1F26                            LOC_F1F26:
+1F26  FF 0F                             DEC     WORD PTR [BX]
+1F28  75 0F                             JNZ     SHORT LOC_F1F39
+1F2A  E8 1D38 R                         CALL    JOY_CLEAR_WINDOW
+1F2D  53                                PUSH    BX
+1F2E  89 57 0C                          MOV     [BX+0CH],DX
+1F31  80 CE 80                          OR      DH,80H
+1F34  B3 0E                             MOV     BL,0EH
+1F36  CD 82                             INT     82H
+1F38  5B                                POP     BX
+1F39                            LOC_F1F39:
+1F39  BA 0C08                           MOV     DX,0C08H
+1F3C  83 C3 06                          ADD     BX,6
+1F3F  E2 E5                             LOOP    LOC_F1F26
+1F41  E8 1CF0 R                         CALL    JOY_TEST_BREAK
+1F44  75 03                             JNZ     SHORT LOC_F1F49
+1F46  E9 1E4E R                         JMP     LOC_F1E4E
+1F49                            LOC_F1F49:
+1F49  1F                                POP     DS
+1F4A                                    ASSUME  DS:NOTHING
+1F4A  2A F6                             SUB     DH,DH
+1F4C  8A DE                             MOV     BL,DH
+1F4E  8A 3E 0012                        MOV     BH,DS:[12H]
+1F52  0A FF                             OR      BH,BH
+1F54  74 03                             JZ      SHORT LOC_F1F59
+1F56  BA 4220                           MOV     DX,4220H
+1F59                            LOC_F1F59:
+1F59  E9 1CE1 R                         JMP     LOC_F1CE1
+
+1F5C  02 DB 05 74 05 74 05 74  JOY_MOVE_MARK   DB      02H,0DBH,05H,74H,05H,74H,05H,74H
+1F64  05 74 05 FC                              DB      05H,74H,05H,0FCH
+1F68  97 [                      JOY_PAD         DB      151 DUP(0)
+            00
+                ]
+1FFF  AB                                        DB      0ABH
+
                                 LIST
                                 ASSUME  CS:CODE,DS:DATA
 E000                                    ORG     0E000H
