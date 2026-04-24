@@ -222,7 +222,7 @@
                                                                 ; CARD
 0065  ??                        CRT_MODE_SET    DB      ?       ; CURRENT SETTING OF THE
                                                                 ; CRT MODE REGISTER
-0066  ??                        CRT_PALLETTE    DB      ?       ; CURRENT PALETTE MASK SETTING
+0066  ??                        CRT_PALETTE     DB      ?       ; CURRENT PALETTE MASK SETTING
                                 ; ---------------------------------------------
                                 ;              CASSETTE DATA AREA
                                 ; ---------------------------------------------
@@ -2134,6 +2134,7 @@
 0A1C  50                                PUSH    AX
 0A1D  B8 ---- R                         MOV     AX,XXDATA
 0A20  8E D8                             MOV     DS,AX
+                                        ASSUME  DS:XXDATA
 0A22  88 3E 0018 R                      MOV     POST_ERR,BH     ; SET ERROR FLAG NON-ZERO
 0A26  58                                POP     AX
 0A27  1F                                POP     DS
