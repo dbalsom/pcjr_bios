@@ -204,7 +204,7 @@
 = 0019                          PARM9           EQU     25          ; PARAMETER 9
 = 0004                          PARM10          EQU     4           ; PARAMETER 10
 ; --------------------------------------------------------------------------------------------------
-;                               A-5
+; A-5
 ; --------------------------------------------------------------------------------------------------
                                 ; ---------------------------------------------
                                 ;              VIDEO DISPLAY DATA AREA
@@ -408,7 +408,7 @@
 0440  ????                      WHOLE_CYCLE     DW      ?
 0442  ????                      HALF_CYCLE      DW      ?
 ; -------------------------------------------------------------------------------------------------
-;                               A-7
+; A-7
 ; -------------------------------------------------------------------------------------------------
 0444  ??                        ;   ERROR PARAMETERS
                                 DK_ER_OCCURED   DB      ?       ; ERROR HAS OCCURRED
@@ -447,7 +447,7 @@
 0028  0A47 R                    EX_0            DW      OFFSET  EB0
 002A  0A47 R                                    DW      OFFSET  EB0
 002C  0ABB R                                    DW      OFFSET  TOTLTPO
-002E  0A84 R                    EX1             DW      OFFSET  MO1
+002E  0A84 R                    EX1             DW      OFFSET  M01
                                 ;-----------------------------------------------
                                 ;             MESSAGE AREA FOR POST
                                 ;-----------------------------------------------
@@ -2919,9 +2919,8 @@
 0D05  1992 R                            DW      OFFSET  WRITE_TTY
 0D07  E5B1 R                            DW      OFFSET  VIDEO_STATE
 0D09  E685 R                            DW      OFFSET  SET_PALLETTE
-= 0022
-                                M0010L  EQU     $-M0010
-
+= 0022                          M0010L  EQU     $-M0010
+                                
 0D0B                            VIDEO_IO        PROC    NEAR
 0D0B  FB                                STI                     ; INTERRUPTS BACK ON
 0D0C  FC                                CLD                     ; SET DIRECTION FORWARD
@@ -2941,14 +2940,14 @@
 0D20  72 04                             JB      C1              ; BRANCH AROUND BRANCH
 0D22  58                                POP     AX              ; THROW AWAY THE PARAMETER
 0D23  E9 0F70 R                         JMP     VIDEO_RETURN    ; DO NOTHING IF NOT IN RANGE
-0D26  E8 138B R C1:                     CALL    DDS
+0D26  E8 138B R                 C1:     CALL    DDS
 0D29  B8 B800                           MOV     AX,0B800H       ; SEGMENT FOR COLOR CARD
 0D2C  80 3E 0049 R 09                   CMP     CRT_MODE,9      ; IN MODE USING 32K REGEN
 0D31  72 09                             JC      C2              ; NO,JUMP
 0D33  8A 26 008A R                      MOV     AH,PAGDAT       ; GET COPY OF PAGE REGS
 0D37  80 E4 38                          AND     AH,CPUREG       ; ISOLATE CPU REG
 0D3A  D0 EC                             SHR     AH,1            ; SHIFT TO MAKE INTO SEGMENT VALUE
-0D3C  8E C0 C2:                         MOV     ES,AX           ; SET UP TO POINT AT VIDEO RAM AREA
+0D3C  8E C0                     C2:     MOV     ES,AX           ; SET UP TO POINT AT VIDEO RAM AREA
 0D3E  58                                POP     AX              ; RECOVER VALUE
 0D3F  8A 26 0049 R                      MOV     AH,CRT_MODE     ; GET CURRENT MODE INTO AH
 0D43  2E: FF A4 0CE9 R                  JMP     WORD PTR CS:[SI+OFFSET M0010]
@@ -5567,26 +5566,26 @@ E4D8  E9 0F70 R                         JMP     VIDEO_RETURN
                                 ;             (BH) = CURRENT CONTENTS OF CRT PAGE REG
                                 ;             (BL) = CURRENT CONTENTS OF CPU PAGE REG
                                 ;----------------------------------------
-E4DB                           SET_CRTCPU:
-E4DB  8A E0                            MOV     AH,AL           ; SAVE REQUEST IN AH
-E4DD  BA 03DA                          MOV     DX,VGA_CTL      ; SET ADDRESS OF GATE ARRAY
-E4E0  EC                       C26:    IN      AL,DX           ; GET STATUS
-E4E1  24 08                            AND     AL,08H          ; VERTICAL RETRACE?
-E4E3  74 FB                            JZ      C26             ; NO, WAIT FOR IT
-E4E5  BA 03DF                          MOV     DX,PAGREG       ; SET IO ADDRESS OF PAGE REG
-E4E8  A0 008A R                        MOV     AL,PAGDAT       ; GET DATA LAST OUTPUT TO REG
-E4EB  80 FC 80                         CMP     AH,80H          ; READ FUNCTION REQUESTED?
-E4EE  74 27                            JZ      C29             ; YES, DON'T SET ANYTHING
-E4F0  80 FC 84                         CMP     AH,84H          ; VALID REQUEST?
-E4F3  73 22                            JNC     C29             ; NO, PRETEND IT WAS A READ REQUEST
-E4F5  F6 C4 01                         TEST    AH,1            ; SET CPU REG?
-E4F8  74 0D                            JZ      C27             ; NO, GO SEE ABOUT CRT REG
-E4FA  D0 E3                            SHL     BL,1            ; SHIFT VALUE TO RIGHT BIT POSITION
-E4FC  D0 E3                            SHL     BL,1
-E4FE  D0 E3                            SHL     BL,1
-E500  24 C7                            AND     AL,NOT CPUREG   ; CLEAR OLD CPU VALUE
-E502  80 E3 38                         AND     BL,CPUREG       ; BE SURE UNRELATED BITS ARE ZERO
-E505  0A C3                            OR      AL,BL           ; OR IN NEW VALUE
+E4DB                            SET_CRTCPU:
+E4DB  8A E0                             MOV     AH,AL           ; SAVE REQUEST IN AH
+E4DD  BA 03DA                           MOV     DX,VGA_CTL      ; SET ADDRESS OF GATE ARRAY
+E4E0  EC                        C26:    IN      AL,DX           ; GET STATUS
+E4E1  24 08                             AND     AL,08H          ; VERTICAL RETRACE?
+E4E3  74 FB                             JZ      C26             ; NO, WAIT FOR IT
+E4E5  BA 03DF                           MOV     DX,PAGREG       ; SET IO ADDRESS OF PAGE REG
+E4E8  A0 008A R                         MOV     AL,PAGDAT       ; GET DATA LAST OUTPUT TO REG
+E4EB  80 FC 80                          CMP     AH,80H          ; READ FUNCTION REQUESTED?
+E4EE  74 27                             JZ      C29             ; YES, DON'T SET ANYTHING
+E4F0  80 FC 84                          CMP     AH,84H          ; VALID REQUEST?
+E4F3  73 22                             JNC     C29             ; NO, PRETEND IT WAS A READ REQUEST
+E4F5  F6 C4 01                          TEST    AH,1            ; SET CPU REG?
+E4F8  74 0D                             JZ      C27             ; NO, GO SEE ABOUT CRT REG
+E4FA  D0 E3                             SHL     BL,1            ; SHIFT VALUE TO RIGHT BIT POSITION
+E4FC  D0 E3                             SHL     BL,1
+E4FE  D0 E3                             SHL     BL,1
+E500  24 C7                             AND     AL,NOT CPUREG   ; CLEAR OLD CPU VALUE
+E502  80 E3 38                          AND     BL,CPUREG       ; BE SURE UNRELATED BITS ARE ZERO
+E505  0A C3                             OR      AL,BL           ; OR IN NEW VALUE
 ; --------------------------------------------------------------------------------------------------
 ; A-58
 ; --------------------------------------------------------------------------------------------------
@@ -8144,28 +8143,28 @@ F0A4                            S8250           ENDP
 F0A4                                    ORG     0F0A4H
 F0A4                            VIDEO_PARMS     LABEL   BYTE
                                 ;------- INIT_TABLE
-F0A4  38 28 2C 06 1F 06                DB      38H,28H,2CH,06H,1FH,6,19H ; SETUP FOR 40X25
-F0AA  19
-F0AB  1C 02 07 06 07                   DB      1CH,2,7,6,7
-F0B0  00 00 00 00                      DB      0,0,0,0
+F0A4  38 28 2C 06 1F 06                 DB      38H,28H,2CH,06H,1FH,6,19H ; SETUP FOR 40X25
+F0AA  19 
+F0AB  1C 02 07 06 07                    DB      1CH,2,7,6,7
+F0B0  00 00 00 00                       DB      0,0,0,0
 ; --------------------------------------------------------------------------------------------------
 ; A-83
 ; --------------------------------------------------------------------------------------------------
-= 0010                         M0040   EQU     $-VIDEO_PARMS
-F0B4  71 50 5A 0C 1F 06                DB      71H,50H,5AH,0CH,1FH,6,19H ; SETUP FOR 80X25
-F0BA  19
-F0BB  1C 02 07 06 07                   DB      1CH,2,7,6,7
-F0C0  00 00 00 00                      DB      0,0,0,0
-
-F0C4  38 28 2B 06 7F 06                DB      38H,28H,2BH,06H,7FH,6,64H ; SET UP FOR GRAPHICS
-F0CA  64
-F0CB  70 02 01 26 07                   DB      70H,2,1,26H,7
-F0D0  00 00 00 00                      DB      0,0,0,0
-
-F0D4  71 50 56 0C 3F 06                DB      71H,50H,56H,0CH,3FH,6,32H ; SET UP FOR GRAPHICS
-F0DA  32
-F0DB  38 02 03 26 07                   DB      38H,2,3,26H,7    ; USING 32K OF MEMORY
-F0E0  00 00 00 00                      DB      0,0,0,0          ; (MODES 9 & A)
+= 0010                          M0040   EQU     $-VIDEO_PARMS
+F0B4  71 50 5A 0C 1F 06                 DB      71H,50H,5AH,0CH,1FH,6,19H ; SETUP FOR 80X25
+F0BA  19 
+F0BB  1C 02 07 06 07                    DB      1CH,2,7,6,7
+F0C0  00 00 00 00                       DB      0,0,0,0
+ 
+F0C4  38 28 2B 06 7F 06                 DB      38H,28H,2BH,06H,7FH,6,64H ; SET UP FOR GRAPHICS
+F0CA  64 
+F0CB  70 02 01 26 07                    DB      70H,2,1,26H,7
+F0D0  00 00 00 00                       DB      0,0,0,0
+ 
+F0D4  71 50 56 0C 3F 06                 DB      71H,50H,56H,0CH,3FH,6,32H ; SET UP FOR GRAPHICS
+F0DA  32 
+F0DB  38 02 03 26 07                    DB      38H,2,3,26H,7    ; USING 32K OF MEMORY
+F0E0  00 00 00 00                       DB      0,0,0,0          ; (MODES 9 & A)
 
                                 ;------------------------------------------------
                                 ; READ_AC_CURRENT
@@ -10360,7 +10359,6 @@ FE66  00 10 38 6C C6 C6                 DB      000H,010H,038H,06CH,0C6H,0C6H,0F
 ; --------------------------------------------------------------------------------------------------
 FE6E                                    ORG     0FE6EH
 FE6E  E9 1393 R                         JMP     NEAR PTR TIME_OF_DAY
-
                                 ;----------------------------------------------------------
                                 ;               CRC CHECK/GENERATION ROUTINE
                                 ; ROUTINE TO CHECK A ROM MODULE USING THE POLYNOMINAL:
@@ -10380,7 +10378,6 @@ FE6E  E9 1393 R                         JMP     NEAR PTR TIME_OF_DAY
                                 ;       NOTE: ROUTINE WILL RETURN IMMEDIATLY IF "RESET_FLAG
                                 ;               IS EQUAL TO "1234H" (WARM START)
                                 ;----------------------------------------------------------
-
 FE71                            CRC_CHECK       PROC    NEAR
                                 ASSUME  DS:NOTHING
 FE71  8B D9                             MOV     BX,CX           ; SAVE COUNT
@@ -10417,7 +10414,6 @@ FE9A                            CRC_CHECK       ENDP
                                 ; IN EVERY CASE, UPON RETURN, REG AL WILL CONTAIN THE CONTENTS OF
                                 ;       PORT(DX)
                                 ;----------------------------------------------------------
-
 FE9A                            RR1             PROC    NEAR
 FE9A  32 C0                             XOR     AL,AL
 FE9C  EE                                OUT     DX,AL           ; DISABLE ALL INTERRUPTS
@@ -10443,7 +10439,6 @@ FEA2                            RR1             ENDP
                                 ; INTERRUPT 1CH AT EVERY TIME TICK.  THE USER MUST CODE A ROUTINE
                                 ; AND PLACE THE CORRECT ADDRESS IN THE VECTOR TABLE.
                                 ;----------------------------------------------------------
-
 FEA5                                    ORG     0FEA5H
                                 ASSUME  DS:DATA
 FEA5                            TIMER_INT       PROC    FAR
@@ -10468,8 +10463,7 @@ FECA  A3 006C R                         MOV     TIMER_LOW,AX
 FECD  C6 06 0070 R 01                   MOV     TIMER_OFL,1
 
 FED2                            T5:                             ; LOOP TILL ALL OVERFLOWS TAKEN
-                                ; CARE OF
-
+                                                                ; CARE OF
 FED2  FE 0E 0040 R                      DEC     MOTOR_COUNT
 FED6  75 09                             JNZ     T6              ; RETURN IF COUNT NOT OUT
 FED8  80 26 003F R F0                   AND     MOTOR_STATUS,0F0H ; TURN OFF MOTOR RUNNING BITS
@@ -10477,7 +10471,6 @@ FEDD  B0 80                             MOV     AL,FDC_RESET    ; TURN OFF MOTOR
 FEDF  E6 F2                             OUT     NEC_CTL,AL      ; TURN OFF THE MOTOR
 FEE1  CD 1C                     T6:     INT     1CH             ; TRANSFER CONTROL TO A USER
                                                                 ; ROUTINE
-
 FEE3  B0 20                             MOV     AL,EOI
 FEE5  E6 20                             OUT     020H,AL         ; END OF INTERRUPT TO 8259
 FEE7  5A                                POP     DX
@@ -10509,34 +10502,34 @@ FEF3                            ROS_CHECKSUM    ENDP
                                 ; WHERE NOTED.
                                 ;-------------------------------------------------------------------
 
-                                ASSUME  CS:CODE
+                                        ASSUME  CS:CODE
 FEF3                                    ORG     0FEF3H
 FEF3                            VECTOR_TABLE    LABEL   WORD    ; VECTOR TABLE FOR MOVE TO INTERRUPTS
-FEF3  FEA5 R                           DW      OFFSET TIMER_INT ; INTERRUPT 8
-FEF5  1561 R                           DW      OFFSET KB_INT    ; INTERRUPT 9
-FEF7  F815 R                           DW      OFFSET D11       ; INTERRUPT A
-FEF9  F815 R                           DW      OFFSET D11       ; INTERRUPT B
-FEFB  F815 R                           DW      OFFSET D11       ; INTERRUPT C
-FEFD  F815 R                           DW      OFFSET D11       ; INTERRUPT D
-FEFF  EF57 R                           DW      OFFSET DISK_INT  ; INTERRUPT E
-FF01  F815 R                           DW      OFFSET D11       ; INTERRUPT F
-FF03  0D0B R                           DW      OFFSET VIDEO_IO  ; INTERRUPT 10H
-FF05  F84D R                           DW      OFFSET EQUIPMENT ; INTERRUPT 11H
-FF07  F841 R                           DW      OFFSET MEMORY_SIZE_DETERMINE ; INTERRUPT 12H
-FF09  EC59 R                           DW      OFFSET DISKETTE_IO ; INTERRUPT 13H
-FF0B  E739 R                           DW      OFFSET RS232_IO  ; INTERRUPT 14H
-FF0D  F859 R                           DW      OFFSET CASSETTE_IO ; INTERRUPT 15H
-FF0F  13DD R                           DW      OFFSET KEYBOARD_IO ; INTERRUPT 16H
-FF11  EFD2 R                           DW      OFFSET PRINTER_IO ; INTERRUPT 17H
-FF13  0000                             DW      00000H           ; INTERRUPT 18H
-FF15  F600                             DW      0F600H           ; MUST BE INSERTED INTO TABLE LATER
-FF17  0B1B R                           DW      OFFSET BOOT_STRAP ; INTERRUPT 19H
-FF19  1393 R                           DW      TIME_OF_DAY      ; INTERRUPT 1AH -- TIME OF DAY
-FF1B  F83C R                           DW      DUMMY_RETURN     ; INTERRUPT 1BH -- KEYBD BREAK ADDR
-FF1D  F83C R                           DW      DUMMY_RETURN     ; INTERRUPT 1C -- TIMER BREAK ADDR
-FF1F  F0A4 R                           DW      VIDEO_PARMS      ; INTERRUPT 1D -- VIDEO PARAMETERS
-FF21  EFC7 R                           DW      OFFSET DISK_BASE ; INTERRUPT 1E -- DISK PARMS
-FF23  E05E R                           DW      CRT_CHARH        ; INTERRUPT 1F -- VIDEO EXT
+FEF3  FEA5 R                            DW      OFFSET TIMER_INT ; INTERRUPT 8
+FEF5  1561 R                            DW      OFFSET KB_INT    ; INTERRUPT 9
+FEF7  F815 R                            DW      OFFSET D11       ; INTERRUPT A
+FEF9  F815 R                            DW      OFFSET D11       ; INTERRUPT B
+FEFB  F815 R                            DW      OFFSET D11       ; INTERRUPT C
+FEFD  F815 R                            DW      OFFSET D11       ; INTERRUPT D
+FEFF  EF57 R                            DW      OFFSET DISK_INT  ; INTERRUPT E
+FF01  F815 R                            DW      OFFSET D11       ; INTERRUPT F
+FF03  0D0B R                            DW      OFFSET VIDEO_IO  ; INTERRUPT 10H
+FF05  F84D R                            DW      OFFSET EQUIPMENT ; INTERRUPT 11H
+FF07  F841 R                            DW      OFFSET MEMORY_SIZE_DETERMINE ; INTERRUPT 12H
+FF09  EC59 R                            DW      OFFSET DISKETTE_IO ; INTERRUPT 13H
+FF0B  E739 R                            DW      OFFSET RS232_IO  ; INTERRUPT 14H
+FF0D  F859 R                            DW      OFFSET CASSETTE_IO ; INTERRUPT 15H
+FF0F  13DD R                            DW      OFFSET KEYBOARD_IO ; INTERRUPT 16H
+FF11  EFD2 R                            DW      OFFSET PRINTER_IO ; INTERRUPT 17H
+FF13  0000                              DW      00000H           ; INTERRUPT 18H
+FF15  F600                              DW      0F600H           ; MUST BE INSERTED INTO TABLE LATER
+FF17  0B1B R                            DW      OFFSET BOOT_STRAP ; INTERRUPT 19H
+FF19  1393 R                            DW      TIME_OF_DAY      ; INTERRUPT 1AH -- TIME OF DAY
+FF1B  F83C R                            DW      DUMMY_RETURN     ; INTERRUPT 1BH -- KEYBD BREAK ADDR
+FF1D  F83C R                            DW      DUMMY_RETURN     ; INTERRUPT 1C -- TIMER BREAK ADDR
+FF1F  F0A4 R                            DW      VIDEO_PARMS      ; INTERRUPT 1D -- VIDEO PARAMETERS
+FF21  EFC7 R                            DW      OFFSET DISK_BASE ; INTERRUPT 1E -- DISK PARMS
+FF23  E05E R                            DW      CRT_CHARH        ; INTERRUPT 1F -- VIDEO EXT
 FF23                            P_MSG          PROC    NEAR
 FF23  2E: 8A 04                 G12A:   MOV     AL,CS:[SI]      ; PUT CHAR IN AL
 FF26  46                                INC     SI              ; POINT TO NEXT CHAR
@@ -10683,7 +10676,6 @@ FFCB                            PRINT_SCREEN    ENDP
                                 ; KEYBOARD VECTOR IS RESET TO POINT TO "NEW_INT_9"       ;
                                 ; BASIC VECTOR IS SET TO POINT TO F600:0                 ;
                                 ;-------------------------------------------------------;
-
 FFCB                            BAS_ENT         PROC    FAR
                                 ASSUME  DS:ABS0
 FFCB  2B C0                             SUB     AX,AX
@@ -10693,7 +10685,6 @@ FFD5  A3 0060 R                         MOV     BASIC_PTR,AX    ; SET INT 18=F60
 FFD8  C7 06 0062 R F600                 MOV     BASIC_PTR+2,0F600H
 FFDE  CD 18                             INT     18H             ; GO TO BASIC
 FFE0                            BAS_ENT         ENDP
-
                                 ;-------------------------------------------------------;
                                 ; INITIALIZE TIMER SUBROUTINE - ASSUMES BOTH THE LSB AND MSB
                                 ; OF THE TIMER WILL BE USED.                             ;
