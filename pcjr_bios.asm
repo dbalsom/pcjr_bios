@@ -4,6 +4,9 @@
 ; OCR'd by GloriousCow in 2026
 ;
 ;                               | <- ASM source begins on this column
+; -------------------------------------------------------------------------------------------------
+
+; -------------------------------------------------------------------------------------------------
 ; A-3
 ; -------------------------------------------------------------------------------------------------
                                 ;
@@ -746,7 +749,7 @@
 01CA 33 C0                              XOR     AX,AX           ; SET UP DATA SEG
 01CC 8E D8                              MOV     DS,AX
                                 ;------ SETUP CRT PAGE
-01CE C7 06 0462 R 0007                  MOV     DATA_WORD(ACTIVE_PAGE-DATA),07
+01CE C7 06 0462 R 0007                  MOV     DATA_WORD[ACTIVE_PAGE-DATA],07
                                 ;------ SET PRELIMINARY MEMORY SIZE WORD
 01D4 BB 0040                            MOV     BX,64
 01D7 E4 62                              IN      AL,PORT_C       ;
@@ -755,8 +758,8 @@
 01DD 75 05                              JNZ     L26             ; SET TO 64K IF NOT
 01DF 83 C3 40                           ADD     BX,64           ; ELSE SET FOR 128K
 01E2 B0 3F                              MOV     AL,3FH          ; PORT SETTING FOR 128K SYSTEM
-01E4 89 1E 0415 R               L26:    MOV     DATA_WORD(TRUE_MEM-DATA),BX
-01E8 A2 048A R                          MOV     DATA_AREA(PAGDAT-DATA),AL
+01E4 89 1E 0415 R               L26:    MOV     DATA_WORD[TRUE_MEM-DATA],BX
+01E8 A2 048A R                          MOV     DATA_AREA[PAGDAT-DATA],AL
                                 ;-----------------------------------------
                                 ;       PART 6
                                 ;               INTERRUPTS
@@ -1510,46 +1513,44 @@
 0601  5B                                POP     BX
 0602  C3                        Q35E:   RET
 0603                            Q35     ENDP
-
                                 ; ON ENTRY TO MEMORY ERROR ROUTINE, CX HAS ERROR BITS
                                 ; AH HAS ODD/EVEN INFO, OTHER USEFUL INFO ON THE STACK
-0603  5A                        Q39:    POP     DX                  ; POP SEGMENT POINTER TO DX
-                                ;                         ; (HEADING DOWNHILL, DON'T CARE
-                                ;                         ; ABOUT STACK)
-0604  81 FA 2000                        CMP     DX,2000H            ; ABOVE 128K (THE SIMPLE CASE)
-0608  7C 0E                             JL      Q40                 ; GO DO ODD/EVEN-LESS THAN 128K
-060A  8A D9                             MOV     BL,CL               ; FORM ERROR BITS ("XX")
+0603  5A                        Q39:    POP     DX              ; POP SEGMENT POINTER TO DX
+                                ;                               ; (HEADING DOWNHILL, DON'T CARE
+                                ;                               ; ABOUT STACK)
+0604  81 FA 2000                        CMP     DX,2000H        ; ABOVE 128K (THE SIMPLE CASE)
+0608  7C 0E                             JL      Q40             ; GO DO ODD/EVEN-LESS THAN 128K
+060A  8A D9                             MOV     BL,CL           ; FORM ERROR BITS ("XX")
 060C  0A DD                             OR      BL,DH
-060E  B1 04                             MOV     CL,4                ;
-0610  D2 EE                             SHR     DH,CL               ; ROTATE MOST SIGNIFICANT
-                                                                    ; NIBBLE OF SEGMENT
-0612  B7 10                             MOV     BH,10H              ; TO LOW NIBBLE OF DH
-0614  0A FE                             OR      BH,DH               ; FORM "1Y" VALUE
+060E  B1 04                             MOV     CL,4            ;
+0610  D2 EE                             SHR     DH,CL           ; ROTATE MOST SIGNIFICANT
+                                                                ; NIBBLE OF SEGMENT
+0612  B7 10                             MOV     BH,10H          ; TO LOW NIBBLE OF DH
+0614  0A FE                             OR      BH,DH           ; FORM "1Y" VALUE
 0616  EB 20                             JMP     SHORT Q42
-0618  B7 0A                     Q40:    MOV     BH,0AH              ; ERROR 0A....
-061A  E4 62                             IN      AL,PORT_C           ; GET CONFIG BITS
-061C  24 08                             AND     AL,00001000B        ; TEST FOR ATTRIB CARD PRESENT
-061E  74 06                             JZ      Q41                 ; WORRY ABOUT ODD/EVEN IF IT IS
+0618  B7 0A                     Q40:    MOV     BH,0AH          ; ERROR 0A....
+061A  E4 62                             IN      AL,PORT_C       ; GET CONFIG BITS
+061C  24 08                             AND     AL,00001000B    ; TEST FOR ATTRIB CARD PRESENT
+061E  74 06                             JZ      Q41             ; WORRY ABOUT ODD/EVEN IF IT IS
 0620  8A D9                             MOV     BL,CL
-0622  0A DD                             OR      BL,CH               ; COMBINE ERROR BITS IF IT ISN'T
-0624  EB 12                             JMP     SHORT Q42           ;
+0622  0A DD                             OR      BL,CH           ; COMBINE ERROR BITS IF IT ISN'T
+0624  EB 12                             JMP     SHORT Q42       ;
 ; --------------------------------------------------------------------------------------------------
 ; A-18
 ; --------------------------------------------------------------------------------------------------
-0626  80 FC 02                          CMP     AH,02               ; EVEN BYTE ERROR? ERR 0AXX
+0626  80 FC 02                          CMP     AH,02           ; EVEN BYTE ERROR? ERR 0AXX
 0629  8A D9                             MOV     BL,CL
 062B  74 0B                             JE      Q42
-062D  FE C7                             INC     BH                  ; MAKE INTO 0BXX ERR
-062F  0A DD                             OR      BL,DH               ; MOVE AND COMBINE ERROR BITS
-0631  80 FC 01                          CMP     AH,1                ; ODD BYTE ERROR
+062D  FE C7                             INC     BH              ; MAKE INTO 0BXX ERR
+062F  0A DD                             OR      BL,DH           ; MOVE AND COMBINE ERROR BITS
+0631  80 FC 01                          CMP     AH,1            ; ODD BYTE ERROR
 0634  74 02                             JE      Q42
-0636  FE C7                             INC     BH                  ; MUST HAVE BEEN BOTH
-                                ; - MAKE INTO 0CXX
-
+0636  FE C7                             INC     BH              ; MUST HAVE BEEN BOTH
+                                                                ; - MAKE INTO 0CXX
 0638  BE 0035 R                 Q42:    MOV     SI,OFFSET MEM_ERR
-063B  E8 09BC R                         CALL    E_MSG               ; LET ERROR ROUTINE FIGURE OUT
-                                ; WHAT TO DO
-
+063B  E8 09BC R                         CALL    E_MSG           ; LET ERROR ROUTINE FIGURE OUT
+                                                                ; WHAT TO DO
+                                                                ;
 063E  FA                                CLI
 063F  F4                                HLT
 0640                            Q43:
@@ -1572,180 +1573,178 @@
                                 ;-------------------------------------------------------
                                         ASSUME  DS:DATA
                                 ;----- CHECK FOR STUCK KEYS
-0640  E8 E6D8 R                         CALL    MFG_UP              ; MFG CODE=F2
-0643  E8 138B R                         CALL    DDS                 ; ESTABLISH ADDRESSING
+0640  E8 E6D8 R                         CALL    MFG_UP          ; MFG CODE=F2
+0643  E8 138B R                         CALL    DDS             ; ESTABLISH ADDRESSING
 0646  BB 001E R                         MOV     BX,OFFSET KB_BUFFER
-0649  8A 07                             MOV     AL,[BX]             ; CHECK FOR STUCK KEYS
-064B  0A C0                             OR      AL,AL               ; SCAN CODE = 0?
-064D  74 06                             JE      F6_Y                ; YES - CONTINUE TESTING
-064F  B7 22                             MOV     BH,22H              ; 22XX ERROR CODE
-0651  8A D8                             MOV     BL,AL               ;
+0649  8A 07                             MOV     AL,[BX]         ; CHECK FOR STUCK KEYS
+064B  0A C0                             OR      AL,AL           ; SCAN CODE = 0?
+064D  74 06                             JE      F6_Y            ; YES - CONTINUE TESTING
+064F  B7 22                             MOV     BH,22H          ; 22XX ERROR CODE
+0651  8A D8                             MOV     BL,AL           ;
 0653  EB 0A                             JMP     SHORT F6
-0655  80 3E 0012 R 00           F6_Y:   CMP     KBD_ERR,00H         ; DID NMI'S HAPPEN WITH NO SCAN
-                                                                    ; CODE PASSED?
-065A  74 1C                             JE      F7                  ; (STRAYS) - CONTINUE IF NONE
-065C  BB 2000                           MOV     BX,2000H            ; SET ERROR CODE 2000
-065F  BE 0036 R                 F6:     MOV     SI,OFFSET KEY_ERR   ; GET MSG ADDR
-0662  81 3E 0072 R 4321                 CMP     RESET_FLAG,4321H    ; WARM START TO DIAGS
-0668  74 0B                             JE      F6_Z                ; DO NOT PUT UP MESSAGE
-066A  81 3E 0072 R 1234                 CMP     RESET_FLAG,1234H    ; WARM SYSTEM START
-0670  74 03                             JE      F6_Z                ; DO NOT PUT UP MESSAGE
-0672  E8 09BC R                         CALL    E_MSG               ; PRINT MSG ON SCREEN
+0655  80 3E 0012 R 00           F6_Y:   CMP     KBD_ERR,00H     ; DID NMI'S HAPPEN WITH NO SCAN
+                                                                ; CODE PASSED?
+065A  74 1C                             JE      F7              ; (STRAYS) - CONTINUE IF NONE
+065C  BB 2000                           MOV     BX,2000H        ; SET ERROR CODE 2000
+065F  BE 0036 R                 F6:     MOV     SI,OFFSET KEY_ERR ; GET MSG ADDR
+0662  81 3E 0072 R 4321                 CMP     RESET_FLAG,4321H ; WARM START TO DIAGS
+0668  74 0B                             JE      F6_Z            ; DO NOT PUT UP MESSAGE
+066A  81 3E 0072 R 1234                 CMP     RESET_FLAG,1234H ; WARM SYSTEM START
+0670  74 03                             JE      F6_Z            ; DO NOT PUT UP MESSAGE
+0672  E8 09BC R                         CALL    E_MSG           ; PRINT MSG ON SCREEN
 0675  E9 06FF R                 F6_Z:   JMP     F6_X
                                 ; CHECK LINK CARD, IF PRESENT
-0678  BA 0201                   F7:     MOV     DX,0201H            ; CHECK FOR BURN-IN MODE
-067B  EC                                IN      AL,DX               ; GET CONFIG. PORT DATA
-067C  24 F0                             AND     AL,0F0H             ; BYPASS CHECK IN BURN-IN MODE
-067E  74 7F                             JZ      F6_X                ; KEYBOARD CABLE ATTACHED?
-0680  E4 62                             IN      AL,PORT_C           ; BYPASS TEST IF IT IS
-0682  24 80                             AND     AL,10000000B        ;
-0684  74 79                             JZ      F6_X                ;
-0686  E4 61                             IN      AL,PORT_B           ;
-0688  24 FC                             AND     AL,11111100B        ; DROP SPEAKER DATA
-068A  E6 61                             OUT     PORT_B,AL           ;
-068C  B0 B6                             MOV     AL,0B6H             ; MODE SET TIMER 2
-068E  E6 43                             OUT     TIM_CTL,AL          ;
-0690  B0 40                             MOV     AL,040H             ; DISABLE NMI
-0692  E6 A0                             OUT     0A0H,AL             ;
-0694  B0 20                             MOV     AL,32               ; LSB TO TIMER 2
-                                                                    ; (APPROX. 40Khz VALUE)
+0678  BA 0201                   F7:     MOV     DX,0201H        ; CHECK FOR BURN-IN MODE
+067B  EC                                IN      AL,DX           ; GET CONFIG. PORT DATA
+067C  24 F0                             AND     AL,0F0H         ; BYPASS CHECK IN BURN-IN MODE
+067E  74 7F                             JZ      F6_X            ; KEYBOARD CABLE ATTACHED?
+0680  E4 62                             IN      AL,PORT_C       ; BYPASS TEST IF IT IS
+0682  24 80                             AND     AL,10000000B    ;
+0684  74 79                             JZ      F6_X            ;
+0686  E4 61                             IN      AL,PORT_B       ;
+0688  24 FC                             AND     AL,11111100B    ; DROP SPEAKER DATA
+068A  E6 61                             OUT     PORT_B,AL       ;
+068C  B0 B6                             MOV     AL,0B6H         ; MODE SET TIMER 2
+068E  E6 43                             OUT     TIM_CTL,AL      ;
+0690  B0 40                             MOV     AL,040H         ; DISABLE NMI
+0692  E6 A0                             OUT     0A0H,AL         ;
+0694  B0 20                             MOV     AL,32           ; LSB TO TIMER 2
+                                                                ; (APPROX. 40Khz VALUE)
 0696  BA 0042                           MOV     DX,TIMER+2
 0699  EE                                OUT     DX,AL
 069A  2B C0                             SUB     AX,AX
 069C  8B C8                             MOV     CX,AX
-069E  EE                                OUT     DX,AL               ; MSB TO TIMER 2 (START TIMER)
+069E  EE                                OUT     DX,AL           ; MSB TO TIMER 2 (START TIMER)
 069F  E4 61                             IN      AL,PORT_B
 06A1  0C 01                             OR      AL,1
-06A3  E6 61                             OUT     PORT_B,AL           ; ENABLE TIMER 2
-06A5  E4 62                     F7_0:   IN      AL,PORT_C           ; SEE IF KEYBOARD DATA ACTIVE
-06A7  24 40                             AND     AL,01000000B        ;
-06A9  75 06                             JNZ     F7_1                ; EXIT LOOP IF DATA SHOWED UP
+06A3  E6 61                             OUT     PORT_B,AL       ; ENABLE TIMER 2
+06A5  E4 62                     F7_0:   IN      AL,PORT_C       ; SEE IF KEYBOARD DATA ACTIVE
+06A7  24 40                             AND     AL,01000000B    ;
+06A9  75 06                             JNZ     F7_1            ; EXIT LOOP IF DATA SHOWED UP
 06AB  E2 F8                             LOOP    F7_0
-06AD  B3 02                             MOV     BL,02H              ; SET NO KEYBOARD DATA ERROR
+06AD  B3 02                             MOV     BL,02H          ; SET NO KEYBOARD DATA ERROR
 06AF  EB 49                             JMP     SHORT F6_1
-06B1  06                        F7_1:   PUSH    ES                  ; SAVE ES
-06B2  2B C0                             SUB     AX,AX               ; SET UP SEGMENT REG
-06B4  8E C0                             MOV     ES,AX               ; *
+06B1  06                        F7_1:   PUSH    ES              ; SAVE ES
+06B2  2B C0                             SUB     AX,AX           ; SET UP SEGMENT REG
+06B4  8E C0                             MOV     ES,AX           ; *
 06B6  26: C7 06 0008 R F815 R           MOV     ES:[NMI_PTR],OFFSET D11 ; SET UP NEW NMI VECTOR
-06BD  A2 0084 R                         MOV     INTR_FLAG,AL        ; RESET INTR FLAG
-06C0  E4 61                             IN      AL,PORT_B           ; DISABLE INTERNAL BEEPER TO
-06C2  0C 30                             OR      AL,00110000B        ; PREVENT ERROR BEEP
+06BD  A2 0084 R                         MOV     INTR_FLAG,AL    ; RESET INTR FLAG
+06C0  E4 61                             IN      AL,PORT_B       ; DISABLE INTERNAL BEEPER TO
+06C2  0C 30                             OR      AL,00110000B    ; PREVENT ERROR BEEP
 06C4  E6 61                             OUT     PORT_B,AL
 06C6  B0 C0                             MOV     AL,0C0H
-06C8  E6 A0                             OUT     0A0H,AL             ; ENABLE NMI
-06CA  B9 0100                           MOV     CX,0100H            ;
+06C8  E6 A0                             OUT     0A0H,AL         ; ENABLE NMI
+06CA  B9 0100                           MOV     CX,0100H        ;
 ; --------------------------------------------------------------------------------------------------
 ; A-19
 ; --------------------------------------------------------------------------------------------------
-06CD  E2 FE                     F6_0:   LOOP    F6_0                ; WAIT A BIT
-06CF  E4 61                             IN      AL,PORT_B           ; RE-ENABLE BEEPER
+06CD  E2 FE                     F6_0:   LOOP    F6_0            ; WAIT A BIT
+06CF  E4 61                             IN      AL,PORT_B       ; RE-ENABLE BEEPER
 06D1  24 CF                             AND     AL,11001111B
 06D3  E6 61                             OUT     PORT_B,AL
-06D5  A0 0084 R                         MOV     AL,INTR_FLAG        ; GET INTR FLAG
-06D8  0A C0                             OR      AL,AL               ; WILL BE NON-ZERO IF NMI HAPPENED
-06DA  B3 03                             MOV     BL,03H              ; SET POSSIBLE ERROR CODE
+06D5  A0 0084 R                         MOV     AL,INTR_FLAG    ; GET INTR FLAG
+06D8  0A C0                             OR      AL,AL           ; WILL BE NON-ZERO IF NMI HAPPENED
+06DA  B3 03                             MOV     BL,03H          ; SET POSSIBLE ERROR CODE
 06DC  26: C7 06 0008 R 0F78 R           MOV     ES:[NMI_PTR],OFFSET KBDNMI ; RESET NMI VECTOR
-06E3  07                                POP     ES                  ; RESTORE ES
-06E4  74 14                             JZ      F6_1                ; JUMP IF NO NMI
-06E6  B0 00                             MOV     AL,00H              ; DISABLE FEEDBACK CKT
-06E8  E6 A0                             OUT     0A0H,AL             ;
-06EA  E4 61                             IN      AL,PORT_B           ;
-06EC  24 FE                             AND     AL,11111110B        ; DROP GATE TO TIMER 2
-06EE  E6 61                             OUT     PORT_B,AL           ;
-06F0  E4 62                     F6_2:   IN      AL,PORT_C           ; SEE IF KEYBOARD DATA ACTIVE
+06E3  07                                POP     ES              ; RESTORE ES
+06E4  74 14                             JZ      F6_1            ; JUMP IF NO NMI
+06E6  B0 00                             MOV     AL,00H          ; DISABLE FEEDBACK CKT
+06E8  E6 A0                             OUT     0A0H,AL         ;
+06EA  E4 61                             IN      AL,PORT_B       ;
+06EC  24 FE                             AND     AL,11111110B    ; DROP GATE TO TIMER 2
+06EE  E6 61                             OUT     PORT_B,AL       ;
+06F0  E4 62                     F6_2:   IN      AL,PORT_C       ; SEE IF KEYBOARD DATA ACTIVE
 06F2  24 40                             AND     AL,01000000B
-06F4  74 09                             JZ      F6_X                ; EXIT LOOP IF DATA WENT LOW
-06F6  E2 F8                             LOOP    F6_2                ;
-06F8  B3 01                     F6_1:   MOV     BL,01H              ; SET KEYBOARD DATA STUCK HIGH ERR
-06FA  B7 21                             MOV     BH,21H              ; POST ERROR "21XX"
-06FC  E9 065F R                         JMP     F6                  ;
-06FF  B0 00                     F6_X:   MOV     AL,00H              ; DISABLE FEEDBACK CKT
-0701  E6 A0                             OUT     0A0H,AL             ;
-
+06F4  74 09                             JZ      F6_X            ; EXIT LOOP IF DATA WENT LOW
+06F6  E2 F8                             LOOP    F6_2            ;
+06F8  B3 01                     F6_1:   MOV     BL,01H          ; SET KEYBOARD DATA STUCK HIGH ERR
+06FA  B7 21                             MOV     BH,21H          ; POST ERROR "21XX"
+06FC  E9 065F R                         JMP     F6              ;
+06FF  B0 00                     F6_X:   MOV     AL,00H          ; DISABLE FEEDBACK CKT
+0701  E6 A0                             OUT     0A0H,AL         ;
                                 ;--------------------------------------------
                                 ;       CASSETTE INTERFACE TEST
                                 ; DESCRIPTION
                                 ;       TURN CASSETTE MOTOR OFF. WRITE A BIT OUT TO THE
                                 ;       CASSETTE DATA BUS. VERIFY THAT CASSETTE DATA
                                 ;       READ IS WITHIN A VALID RANGE.
-                                ;       MFG. ERROR CODE=2300H (DATA PATH ERROR)
-                                ;                       23FF (RELAY FAILED TO PICK)
+                                ;  MFG. ERROR CODE=2300H (DATA PATH ERROR)
+                                ;                  23FF (RELAY FAILED TO PICK)
                                 ;--------------------------------------------
-= 0A9A                          MAX_PERIOD     EQU     0A9AH        ; NOM.+10%
-= 08AD                          MIN_PERIOD     EQU     08ADH        ; NOM -10%
+= 0A9A                          MAX_PERIOD     EQU     0A9AH    ; NOM.+10%
+= 08AD                          MIN_PERIOD     EQU     08ADH    ; NOM -10%
                                 ;------ TURN THE CASSETTE MOTOR OFF
-0703  E8 E6D8 R                         CALL    MFG_UP              ; MFG CODE=F1
+0703  E8 E6D8 R                         CALL    MFG_UP          ; MFG CODE=F1
 0706  E4 61                             IN      AL,PORT_B
-0708  0C 09                             OR      AL,00001001B        ; SET TIMER 2 SPK OUT, AND CASSETTE
-070A  E6 61                             OUT     PORT_B,AL           ; OUT BITS ON, CASSETTE MOT OFF
-
+0708  0C 09                             OR      AL,00001001B    ; SET TIMER 2 SPK OUT, AND CASSETTE
+070A  E6 61                             OUT     PORT_B,AL       ; OUT BITS ON, CASSETTE MOT OFF
                                 ;------ WRITE A BIT
-070C  E4 21                             IN      AL,INTA01           ; DISABLE TIMER INTERRUPTS
+070C  E4 21                             IN      AL,INTA01       ; DISABLE TIMER INTERRUPTS
 070E  0C 01                             OR      AL,01H
 0710  E6 21                             OUT     INTA01,AL
-0712  B0 B6                             MOV     AL,0B6H             ; SEL TIM 2, LSB, MSB, MD 3
-0714  E6 43                             OUT     TIMER+3,AL          ; WRITE 8253 CMD/MODE REG
-0716  B8 04D2                           MOV     AX,1234             ; SET TIMER 2 CNT FOR 1000 USEC
-0719  E6 42                             OUT     TIMER+2,AL          ; WRITE TIMER 2 COUNTER REG
-071B  8A C4                             MOV     AL,AH               ; WRITE MSB
+0712  B0 B6                             MOV     AL,0B6H         ; SEL TIM 2, LSB, MSB, MD 3
+0714  E6 43                             OUT     TIMER+3,AL      ; WRITE 8253 CMD/MODE REG
+0716  B8 04D2                           MOV     AX,1234         ; SET TIMER 2 CNT FOR 1000 USEC
+0719  E6 42                             OUT     TIMER+2,AL      ; WRITE TIMER 2 COUNTER REG
+071B  8A C4                             MOV     AL,AH           ; WRITE MSB
 071D  E6 42                             OUT     TIMER+2,AL
-071F  2B C9                             SUB     CX,CX               ; CLEAR COUNTER FOR LONG DELAY
-0721  E2 FE                             LOOP    $                   ; WAIT FOR COUNTER TO INIT
-
+071F  2B C9                             SUB     CX,CX           ; CLEAR COUNTER FOR LONG DELAY
+0721  E2 FE                             LOOP    $               ; WAIT FOR COUNTER TO INIT
                                 ;------ READ CASSETTE INPUT
-0723  E4 62                             IN      AL,PORT_C           ; READ VALUE OF CASS IN BIT
-0725  24 10                             AND     AL,10H              ; ISOLATE FROM OTHER BITS
+0723  E4 62                             IN      AL,PORT_C       ; READ VALUE OF CASS IN BIT
+0725  24 10                             AND     AL,10H          ; ISOLATE FROM OTHER BITS
 0727  A2 006B R                         MOV     LAST_VAL,AL
-072A  E8 F96F R                         CALL    READ_HALF_BIT       ; TO SET UP CONDITIONS FOR CHECK
+072A  E8 F96F R                         CALL    READ_HALF_BIT   ; TO SET UP CONDITIONS FOR CHECK
 072D  E8 F96F R                         CALL    READ_HALF_BIT
-0730  E3 3E                             JCXZ    F8                  ; CAS_ERR
-0732  53                                PUSH    BX                  ; SAVE HALF BIT TIME VALUE
+0730  E3 3E                             JCXZ    F8              ; CAS_ERR
+0732  53                                PUSH    BX              ; SAVE HALF BIT TIME VALUE
 0733  E8 F96F R                         CALL    READ_HALF_BIT
-0736  58                                POP     AX                  ; GET TOTAL TIME
-0737  E3 37                             JCXZ    F8                  ; CAS_ERR
+0736  58                                POP     AX              ; GET TOTAL TIME
+0737  E3 37                             JCXZ    F8              ; CAS_ERR
 0739  03 C3                             ADD     AX,BX
 073B  3D 0A9A                           CMP     AX,MAX_PERIOD
-073E  73 30                             JNC     F8                  ; CAS_ERR
+073E  73 30                             JNC     F8              ; CAS_ERR
 0740  3D 08AD                           CMP     AX,MIN_PERIOD
 0743  72 2B                             JC      F8
 0745  BA 0201                           MOV     DX,201H
 0748  EC                                IN      AL,DX
-0749  24 F0                             AND     AL,0F0H             ; DETERMINE MODE
-074B  3C 10                             CMP     AL,00010000B        ; MFG?
+0749  24 F0                             AND     AL,0F0H         ; DETERMINE MODE
+074B  3C 10                             CMP     AL,00010000B    ; MFG?
 074D  74 04                             JE      F9
-074F  3C 40                             CMP     AL,01000000B        ; SERVICE?
-0751  75 26                             JNE     T13_END             ; GO TO NEXT TEST IF NOT
+074F  3C 40                             CMP     AL,01000000B    ; SERVICE?
+0751  75 26                             JNE     T13_END         ; GO TO NEXT TEST IF NOT
                                 ; CHECK THAT CASSETTE RELAY IS PICKING (CAN'T DO TEST IN NORMAL
                                 ; MODE BECAUSE OF POSSIBILITY OF WRITING ON CASSETTE IF "RECORD"
                                 ; BUTTON IS DEPRESSED.)
-0753  E4 61                     F9:     IN      AL,PORT_B           ; SAVE PORT B CONTENTS
+0753  E4 61                     F9:     IN      AL,PORT_B       ; SAVE PORT B CONTENTS
 0755  8A D0                             MOV     DL,AL
-0757  24 E5                             AND     AL,11100101B        ; SET CASSETTE MOTOR ON
-0759  E6 61                             OUT     PORT_B,AL           ;
-075B  33 C9                             XOR     CX,CX               ;
-075D  E2 FE                             LOOP    F91                 ; WAIT FOR RELAY TO SETTLE
+0757  24 E5                             AND     AL,11100101B    ; SET CASSETTE MOTOR ON
+0759  E6 61                             OUT     PORT_B,AL       ;
+075B  33 C9                             XOR     CX,CX           ;
+075D  E2 FE                             LOOP    F91             ; WAIT FOR RELAY TO SETTLE
 075F  E8 F96F R                 F91:    CALL    READ_HALF_BIT
 0762  E8 F96F R                         CALL    READ_HALF_BIT
-0765  8A C2                             MOV     AL,DL               ; DROP RELAY
+0765  8A C2                             MOV     AL,DL           ; DROP RELAY
 0767  E6 61                             OUT     PORT_B,AL
-0769  E3 0E                             JCXZ    T13_END             ; READ_HALF_BIT SHOULD TIME OUT IN
-                                                                    ; THIS SITUATION
-076B  BB 23FF                           MOV     BX,23FFH            ; ERROR 23FF
+0769  E3 0E                             JCXZ    T13_END         ; READ_HALF_BIT SHOULD TIME OUT IN
+                                                                ; THIS SITUATION
+076B  BB 23FF                           MOV     BX,23FFH        ; ERROR 23FF
 076E  EB 03                             JMP     SHORT F81
-0770                            F8:     ; CAS_ERR
-0770  BB 2300                           MOV     BX,2300H            ; ERR. CODE 2300H
-0773  BE 0037 R                 F81:    MOV     SI,OFFSET CASS_ERR  ; CASSETTE WRAP FAILED
-0776  E8 09BC R                         CALL    E_MSG               ; GO PRINT ERROR MSG
+0770                            F8:                             ; CAS_ERR
+0770  BB 2300                           MOV     BX,2300H        ; ERR. CODE 2300H
+0773  BE 0037 R                 F81:    MOV     SI,OFFSET CASS_ERR ; CASSETTE WRAP FAILED
+0776  E8 09BC R                         CALL    E_MSG           ; GO PRINT ERROR MSG
 0779                            T13_END:
-0779  E4 21                             IN      AL,INTA01           ; ENABLE TIMER INTS
+0779  E4 21                             IN      AL,INTA01       ; ENABLE TIMER INTS
 077B  24 FE                             AND     AL,0FEH
 077D  E6 21                             OUT     INTA01,AL
-077F  E4 A0                             IN      AL,NMI_PORT         ; CLEAR NMI FLIP/FLOP
-0781  B0 80                             MOV     AL,80H              ; ENABLE NMI INTERRUPTS
+077F  E4 A0                             IN      AL,NMI_PORT     ; CLEAR NMI FLIP/FLOP
+0781  B0 80                             MOV     AL,80H          ; ENABLE NMI INTERRUPTS
 0783  E6 A0                             OUT     NMI_PORT,AL
 ; --------------------------------------------------------------------------------------------------
 ; A-20
 ; --------------------------------------------------------------------------------------------------
+                                ;-------------------------------------------------------------------
                                 ;
                                 ;       SERIAL PRINTER AND MODEM POWER ON DIAGNOSTIC
                                 ; DESCRIPTION:
@@ -1757,50 +1756,45 @@
                                 ;       FOR POSSIBLE ERRORS.
                                 ;       MFG. ERR. CODES  23XX FOR SERIAL PRINTER
                                 ;                       24XX FOR MODEM
-                                ;
-
+                                ;-------------------------------------------------------------------
                                         ASSUME  CS:CODE,DS:DATA
-
-                                ;-------------------------------------------------------
+                                ;---------------------------------------------------------------
                                 ;       TEST SERIAL PRINTER INS8250 UART
-                                ;-------------------------------------------------------
-
-0785  E8 E6D8 R                         CALL    MFG_UP              ; MFG ROUTINE INDICATOR=F0
-0788  BA 02F8                           MOV     DX,02F8H            ; ADDRESS OF SERIAL PRINTER CARD
-078B  E8 E831 R                         CALL    UART                ; ASYNCH. COMM. ADAPTER POD
-078E  73 06                             JNC     TM                  ; PASSED
-0790  BE 0038 R                         MOV     SI,OFFSET COM1_ERR  ; CODE FOR DISPLAY
-0793  E8 09BC R                         CALL    E_MSG               ; REPORT ERROR
-
-                                ;-------------------------------------------------------
+                                ;---------------------------------------------------------------
+0785  E8 E6D8 R                         CALL    MFG_UP          ; MFG ROUTINE INDICATOR=F0
+0788  BA 02F8                           MOV     DX,02F8H        ; ADDRESS OF SERIAL PRINTER CARD
+078B  E8 E831 R                         CALL    UART            ; ASYNCH. COMM. ADAPTER POD
+078E  73 06                             JNC     TM              ; PASSED
+0790  BE 0038 R                         MOV     SI,OFFSET COM1_ERR ; CODE FOR DISPLAY
+0793  E8 09BC R                         CALL    E_MSG           ; REPORT ERROR
+                                ;---------------------------------------------------------------
                                 ;       TEST MODEM INS8250 UART
-                                ;-------------------------------------------------------
-0796  E8 E6D8 R                 TM:     CALL    MFG_UP              ; MFG ROUTINE INDICATOR = EF
-0799  E4 62                             IN      AL,PORT_C           ; TEST FOR MODEM CARD PRESENT
-079B  24 02                             AND     AL,00000010B        ; ONLY CONCERNED WITH BIT 1
-079D  75 0E                             JNE     TM1                 ; IT'S NOT THERE - DONE WITH TEST
-079F  BA 03F8                           MOV     DX,03F8H            ; ADDRESS OF MODEM CARD
-07A2  E8 E831 R                         CALL    UART                ; ASYNCH. COMM. ADAPTER POD
-07A5  73 06                             JNC     TM1                 ; PASSED
-07A7  BE 0039 R                         MOV     SI,OFFSET COM2_ERR  ; MODEM ERROR
-07AA  E8 09BC R                         CALL    E_MSG               ; REPORT ERROR
+                                ;---------------------------------------------------------------
+0796  E8 E6D8 R                 TM:     CALL    MFG_UP          ; MFG ROUTINE INDICATOR = EF
+0799  E4 62                             IN      AL,PORT_C       ; TEST FOR MODEM CARD PRESENT
+079B  24 02                             AND     AL,00000010B    ; ONLY CONCERNED WITH BIT 1
+079D  75 0E                             JNE     TM1             ; IT'S NOT THERE - DONE WITH TEST
+079F  BA 03F8                           MOV     DX,03F8H        ; ADDRESS OF MODEM CARD
+07A2  E8 E831 R                         CALL    UART            ; ASYNCH. COMM. ADAPTER POD
+07A5  73 06                             JNC     TM1             ; PASSED
+07A7  BE 0039 R                         MOV     SI,OFFSET COM2_ERR ; MODEM ERROR
+07AA  E8 09BC R                         CALL    E_MSG           ; REPORT ERROR
 07AD                            TM1:
-                                ;-------------------------------------------------------
+                                ;---------------------------------------------------------------
                                 ;       SETUP HARDWARE INT. VECTOR TABLE
-                                ;-------------------------------------------------------
+                                ;---------------------------------------------------------------
 07AD                                    ASSUME  CS:CODE,DS:ABSO
 07AD  2B C0                             SUB     AX,AX
 07AF  8E C0                             MOV     ES,AX
-07B1  B9 0008                           MOV     CX,08               ; GET VECTOR CNT
-07B4  0E                                PUSH    CS                  ; SETUP DS SEG REG
+07B1  B9 0008                           MOV     CX,08           ; GET VECTOR CNT
+07B4  0E                                PUSH    CS              ; SETUP DS SEG REG
 07B5  1F                                POP     DS
 07B6  BE FEF3 R                         MOV     SI,OFFSET VECTOR_TABLE
 07B9  BF 0020 R                         MOV     DI,OFFSET INT_PTR
 07BC  A5                        F7A:    MOVSW
-07BD  47                                INC     DI                  ; SKIP OVER SEGMENT
+07BD  47                                INC     DI              ; SKIP OVER SEGMENT
 07BE  47                                INC     DI
 07BF  E2 FB                             LOOP    F7A
-
                                 ;----- SET UP OTHER INTERRUPTS AS NECESSARY
                                         ASSUME  DS:ABSO
 07C1  8E D9                             MOV     DS,CX
@@ -1811,37 +1805,36 @@
 07DB  0E                                PUSH    CS
 07DC  58                                POP     AX
 07DD  A3 0062 R                         MOV     WORD PTR BASIC_PTR+2,AX ; CODE SEGMENT FOR CASSETTE
-
-                                ;-------------------------------------------------------
+                                ;---------------------------------------------------------------
                                 ; CHECK FOR OPTIONAL ROM FROM C0000 TO F0000 IN 2K BLOCKS
-                                ; (A VALID MODULE HAS '55AA' IN THE FIRST 2 LOCATIONS,
-                                ;  LENGTH INDICATOR (LENGTH/512) IN THE 3D LOCATION AND
-                                ;  TEST/INIT. CODE STARTING IN THE 4TH LOCATION.)
-                                ; MFG ERR CODE 25XX (XX=MSB OF SEGMENT THAT HAS CRC CHECK)
-                                ;-------------------------------------------------------
+                                ;       (A VALID MODULE HAS '55AA' IN THE FIRST 2 LOCATIONS,
+                                ;       LENGTH INDICATOR (LENGTH/512) IN THE 3D LOCATION AND
+                                ;       TEST/INIT. CODE STARTING IN THE 4TH LOCATION.)
+                                ;       MFG ERR CODE 25XX (XX=MSB OF SEGMENT THAT HAS CRC CHECK)
+                                ;---------------------------------------------------------------
 07E0  B0 01                             MOV     AL,01H
 07E2  E6 13                             OUT     13H,AL
-07E4  E8 E6D8 R                         CALL    MFG_UP              ; MFG ROUTINE = EE
-07E7  BA C000                           MOV     DX,0C000H           ; SET BEGINNING ADDRESS
+07E4  E8 E6D8 R                         CALL    MFG_UP          ; MFG ROUTINE = EE
+07E7  BA C000                           MOV     DX,0C000H       ; SET BEGINNING ADDRESS
 07EA                            ROM_SCAN_1:
 07EA  8E DA                             MOV     DS,DX
-07EC  2B DB                             SUB     BX,BX               ; SET BX=0000
-07EE  8B 07                             MOV     AX,[BX]             ; GET 1ST WORD FROM MODULE
+07EC  2B DB                             SUB     BX,BX           ; SET BX=0000
+07EE  8B 07                             MOV     AX,[BX]         ; GET 1ST WORD FROM MODULE
 07F0  53                                PUSH    BX
-07F1  5B                                POP     BX                  ; BUS SETTLING
-07F2  3D AA55                           CMP     AX,0AA55H           ; = TO ID WORD?
-07F5  75 05                             JNZ     NEXT_ROM            ; PROCEED TO NEXT ROM IF NOT
-07F7  E8 EB51 R                         CALL    ROM_CHECK           ; GO CHECK OUT MODULE
-07FA  EB 04                             JMP     SHORT ARE_WE_DONE   ; CHECK FOR END OF ROM SPACE
+07F1  5B                                POP     BX              ; BUS SETTLING
+07F2  3D AA55                           CMP     AX,0AA55H       ; = TO ID WORD?
+07F5  75 05                             JNZ     NEXT_ROM        ; PROCEED TO NEXT ROM IF NOT
+07F7  E8 EB51 R                         CALL    ROM_CHECK       ; GO CHECK OUT MODULE
+07FA  EB 04                             JMP     SHORT ARE_WE_DONE ; CHECK FOR END OF ROM SPACE
 07FC                            NEXT_ROM:
-07FC  81 C2 0080                        ADD     DX,0080H            ; POINT TO NEXT 2K ADDRESS
+07FC  81 C2 0080                        ADD     DX,0080H        ; POINT TO NEXT 2K ADDRESS
 0800                            ARE_WE_DONE:
-0800  81 FA F000                        CMP     DX,0F000H           ; AT F0000 YET?
-0804  7C E4                             JL      ROM_SCAN_1          ; GO CHECK ANOTHER ADD. IF NOT
+0800  81 FA F000                        CMP     DX,0F000H       ; AT F0000 YET?
+0804  7C E4                             JL      ROM_SCAN_1      ; GO CHECK ANOTHER ADD. IF NOT
 ; --------------------------------------------------------------------------------------------------
 ; A-021
 ; --------------------------------------------------------------------------------------------------
-                                ;
+                                ;------------------------------------------------------------------
                                 ;       DISKETTE ATTACHMENT TEST
                                 ; DESCRIPTION
                                 ;       CHECK IF IPL DISKETTE DRIVE IS ATTACHED TO SYSTEM.  IF
@@ -1849,60 +1842,59 @@
                                 ;       A RECAL AND SEEK CMD TO FDC AND CHECK STATUS. COMPLETE
                                 ;       SYSTEM INITIALIZATION THEN PASS CONTROL TO THE BOOT
                                 ;       LOADER PROGRAM.
-                                ;       MFG ERR CODES: 2601 RESET TO DISKETTE CONTROLLER CD. FAILED
-                                ;                      2602 RECALIBRATE TO DISKETTE DRIVE FAILED
-                                ;                      2603 WATCHDOG TIMER FAILED
-                                ;
-
+                                ;  MFG ERR CODES: 2601 RESET TO DISKETTE CONTROLLER CD. FAILED
+                                ;                 2602 RECALIBRATE TO DISKETTE DRIVE FAILED
+                                ;                 2603 WATCHDOG TIMER FAILED
+                                ;------------------------------------------------------------------
                                         ASSUME  CS:CODE,DS:DATA
-0806  E8 E6D8 R                         CALL    MFG_UP              ; MFG ROUTINE = ED
-0809  E8 138B R                         CALL    DDS                 ; POINT TO DATA AREA
+0806  E8 E6D8 R                         CALL    MFG_UP          ; MFG ROUTINE = ED
+0809  E8 138B R                         CALL    DDS             ; POINT TO DATA AREA
 080C  B0 FF                             MOV     AL,0FFH
-080E  A2 0074 R                         MOV     TRACK0,AL           ; INIT DISKETTE SCRATCHPADS
+080E  A2 0074 R                         MOV     TRACK0,AL       ; INIT DISKETTE SCRATCHPADS
 0811  A2 0075 R                         MOV     TRACK1,AL
 0814  A2 0076 R                         MOV     TRACK2,AL
-0817  E4 62                             IN      AL,PORT_C           ; DISKETTE PRESENT?
+0817  E4 62                             IN      AL,PORT_C       ; DISKETTE PRESENT?
 0819  24 04                             AND     AL,00000100B
 081B  74 03                             JZ      F10_0
 081D  E9 08A3 R                         JMP     F15
 0820  80 0E 0010 R 01           F10_0:  OR      BYTE PTR EQUIP_FLAG,01H ; SET IPL DISKETTE
-                                                                    ; INDICATOR IN EQUIP. FLAG
-0825  83 3E 0072 R 00                   CMP     RESET_FLAG,0        ; RUNNING FROM POWER-ON STATE?
-082A  75 0E                             JNE     F10                 ; BYPASS WATCHDOG TEST
-082C  B0 0A                             MOV     AL,00001010B        ; READ INT. REQUEST REGISTER CMD
+                                                                ; INDICATOR IN EQUIP. FLAG
+0825  83 3E 0072 R 00                   CMP     RESET_FLAG,0    ; RUNNING FROM POWER-ON STATE?
+082A  75 0E                             JNE     F10             ; BYPASS WATCHDOG TEST
+082C  B0 0A                             MOV     AL,00001010B    ; READ INT. REQUEST REGISTER CMD
 082E  E6 20                             OUT     INTA00,AL
 0830  E4 20                             IN      AL,INTA00
-0832  24 40                             AND     AL,01000000B        ; HAS WATCHDOG GONE OFF?
-0834  75 04                             JNZ     F10                 ; PROCEED IF IT HAS
-0836  B3 03                             MOV     BL,03H              ; SET ERROR CODE
+0832  24 40                             AND     AL,01000000B    ; HAS WATCHDOG GONE OFF?
+0834  75 04                             JNZ     F10             ; PROCEED IF IT HAS
+0836  B3 03                             MOV     BL,03H          ; SET ERROR CODE
 0838  EB 33                             JMP     SHORT F13
 083A  B0 80                     F10:    MOV     AL,FDC_RESET
-083C  E6 F2                             OUT     0F2H,AL             ; DISABLE WATCHDOG TIMER
-083E  B4 00                             MOV     AH,0                ; RESET NEC FDC
-0840  8A D4                             MOV     DL,AH               ; SET FOR DRIVE 0
-0842  CD 13                             INT     13H                 ; VERIFY STATUS AFTER RESET
-0844  F6 C4 FF                          TEST    AH,0FFH             ; STATUS OK?
-0847  B3 01                             MOV     BL,01H              ; SET UP POSSIBLE ERROR CODE
-0849  75 22                             JNZ     F13                 ; NO - FDC FAILED
-
-084B  B0 81                             MOV     AL,DRIVE_ENABLE+FDC_RESET ; TURN MOTOR ON,DRIVE 0
-084D  E6 F2                             OUT     0F2H,AL             ; WRITE FDC CONTROL REG
+083C  E6 F2                             OUT     0F2H,AL         ; DISABLE WATCHDOG TIMER
+083E  B4 00                             MOV     AH,0            ; RESET NEC FDC
+0840  8A D4                             MOV     DL,AH           ; SET FOR DRIVE 0
+0842  CD 13                             INT     13H             ; VERIFY STATUS AFTER RESET
+0844  F6 C4 FF                          TEST    AH,0FFH         ; STATUS OK?
+0847  B3 01                             MOV     BL,01H          ; SET UP POSSIBLE ERROR CODE
+0849  75 22                             JNZ     F13             ; NO - FDC FAILED
+                                ;----- TURN MOTOR ON,DRIVE 0
+084B  B0 81                             MOV     AL,DRIVE_ENABLE+FDC_RESET 
+084D  E6 F2                             OUT     0F2H,AL         ; WRITE FDC CONTROL REG
 084F  2B C9                             SUB     CX,CX
-0851  E2 FE                     F11:    LOOP    F11                 ; WAIT FOR 1 SECOND
+0851  E2 FE                     F11:    LOOP    F11             ; WAIT FOR 1 SECOND
 0853  E2 FE                     F12:    LOOP    F12
-0855  33 D2                             XOR     DX,DX               ; SELECT DRIVE 0
-0857  B5 01                             MOV     CH,1                ; SELECT TRACK 1
-0859  88 16 003E R                      MOV     SEEK_STATUS,DL      ; RECALIBRATE DISKETTE
+0855  33 D2                             XOR     DX,DX           ; SELECT DRIVE 0
+0857  B5 01                             MOV     CH,1            ; SELECT TRACK 1
+0859  88 16 003E R                      MOV     SEEK_STATUS,DL  ; RECALIBRATE DISKETTE
 085D  E8 E9FB R                         CALL    SEEK
-0860  B3 02                             MOV     BL,02H              ; ERROR CODE
-0862  72 09                             JC      F13                 ; GO TO ERR SUBROUTINE IF ERR
-0864  B5 22                             MOV     CH,34               ; SELECT TRACK 34
-0866  E8 E9FB R                         CALL    SEEK                ; SEEK TO TRACK 34
-0869  73 0A                             JNC     F14                 ; OK, TURN MOTOR OFF
-086B  B3 02                             MOV     BL,02H              ; ERROR CODE
-086D  B7 26                     F13:    MOV     BH,26H              ; DSK_ERR:(26XX)
-086F  BE 003C R                         MOV     SI,OFFSET DISK_ERR  ; GET ADDR. OF MSG
-0872  E8 09BC R                         CALL    E_MSG               ; GO PRINT ERROR MSG
+0860  B3 02                             MOV     BL,02H          ; ERROR CODE
+0862  72 09                             JC      F13             ; GO TO ERR SUBROUTINE IF ERR
+0864  B5 22                             MOV     CH,34           ; SELECT TRACK 34
+0866  E8 E9FB R                         CALL    SEEK            ; SEEK TO TRACK 34
+0869  73 0A                             JNC     F14             ; OK, TURN MOTOR OFF
+086B  B3 02                             MOV     BL,02H          ; ERROR CODE
+086D  B7 26                     F13:    MOV     BH,26H          ; DSK_ERR:(26XX)
+086F  BE 003C R                         MOV     SI,OFFSET DISK_ERR ; GET ADDR. OF MSG
+0872  E8 09BC R                         CALL    E_MSG           ; GO PRINT ERROR MSG
 0875  B0 82                     F14:    MOV     AL,FDC_RESET+02H
 0877  E6 F2                             OUT     0F2H,AL
 0879  E4 E2                             IN      AL,0E2H
@@ -1924,20 +1916,20 @@
 0899  B4 80                             MOV     AH,10000000B
 089B  08 26 0010 R              F14_2:  OR      BYTE PTR EQUIP_FLAG,AH
                                 ;----- TURN DRIVE 0 MOTOR OFF
-089F  B0 80                     F14_1:  MOV     AL,FDC_RESET        ; TURN DRIVE 0 MOTOR OFF
+089F  B0 80                     F14_1:  MOV     AL,FDC_RESET    ; TURN DRIVE 0 MOTOR OFF
 08A1  E6 F2                             OUT     0F2H,AL
-08A3  C6 06 0084 R 00           F15:    MOV     INTR_FLAG,00H       ; SET STRAY INTERRUPT FLAG = 00
+08A3  C6 06 0084 R 00           F15:    MOV     INTR_FLAG,00H   ; SET STRAY INTERRUPT FLAG = 00
 08A8  BF 0078 R                         MOV     DI,OFFSET PRINT_TIM_OUT ;SET DEFAULT PRT TIMEOUT
 08AB  1E                                PUSH    DS
 08AC  07                                POP     ES
-08AD  B8 1414                           MOV     AX,1414H            ; DEFAULT=20
+08AD  B8 1414                           MOV     AX,1414H        ; DEFAULT=20
 08B0  AB                                STOSW
 08B1  AB                                STOSW
-08B2  B8 0101                           MOV     AX,0101H            ; RS232 DEFAULT=01
+08B2  B8 0101                           MOV     AX,0101H        ; RS232 DEFAULT=01
 08B5  AB                                STOSW
 08B6  AB                                STOSW
 08B7  E4 21                             IN      AL,INTA01
-08B9  24 FE                             AND     AL,0FEH             ; ENABLE TIMER INT. (LVL 0)
+08B9  24 FE                             AND     AL,0FEH         ; ENABLE TIMER INT. (LVL 0)
 08BB  E6 21                             OUT     INTA01,AL
                                         ASSUME  DS:XXDATA
 08BD  1E                                PUSH    DS
@@ -1946,126 +1938,126 @@
 ; --------------------------------------------------------------------------------------------------
 ; A-022
 ; --------------------------------------------------------------------------------------------------
-08C3  80 3E 0018 R 00                   CMP     POST_ERR,00H        ; CHECK FOR "POST_ERR" NON-ZERO
+08C3  80 3E 0018 R 00                   CMP     POST_ERR,00H    ; CHECK FOR "POST_ERR" NON-ZERO
                                         ASSUME  DS:DATA
 08C8  1F                                POP     DS
-08C9  74 10                             JE      F15A_0              ; CONTINUE IF NO ERROR
-08CB  B2 02                             MOV     DL,2                ; 2 SHORT BEEPS (ERROR).
+08C9  74 10                             JE      F15A_0          ; CONTINUE IF NO ERROR
+08CB  B2 02                             MOV     DL,2            ; 2 SHORT BEEPS (ERROR).
 08CD  E8 1A0C R                         CALL    ERR_BEEP
 08D0                            ERR_WAIT:
 08D0  B4 00                             MOV     AH,00
-08D2  CD 16                             INT     16H                 ; WAIT FOR "ENTER" KEY
+08D2  CD 16                             INT     16H             ; WAIT FOR "ENTER" KEY
 08D4  80 FC 1C                          CMP     AH,1CH
 08D7  75 F7                             JNE     ERR_WAIT
 08D9  EB 05                             JMP     SHORT F15C
 08DB                            F15A_0:
-08DB  B2 01                             MOV     DL,1                ; 1 SHORT BEEP (NO ERRORS)
+08DB  B2 01                             MOV     DL,1            ; 1 SHORT BEEP (NO ERRORS)
 08DD  E8 1A0C R                         CALL    ERR_BEEP
                                 ;------ SETUP PRINTER AND RS232 BASE ADDRESSES IF DEVICE ATTACHED
-08E0  BD 003D R                 F15C:   MOV     BP,OFFSET F4        ; PRT_SRC_TBL
+08E0  BD 003D R                 F15C:   MOV     BP,OFFSET F4    ; PRT_SRC_TBL
 08E3  33 F6                             XOR     SI,SI
-08E5  2E: 8B 56 00              F16:    MOV     DX,CS:[BP]          ; PRT_BASE:
-08E9  B0 0AAH                           MOV     AL,0AAH             ; GET PRINTER BASE ADDR
-08EB  EE                                OUT     DX,AL               ; WRITE DATA TO PORT A
-08EC  1E                                PUSH    DS                  ; BUS SETTLING
-08ED  EC                                IN      AL,DX               ; READ PORT A
+08E5  2E: 8B 56 00              F16:    MOV     DX,CS:[BP]      ; PRT_BASE:
+08E9  B0 0AAH                           MOV     AL,0AAH         ; GET PRINTER BASE ADDR
+08EB  EE                                OUT     DX,AL           ; WRITE DATA TO PORT A
+08EC  1E                                PUSH    DS              ; BUS SETTLING
+08ED  EC                                IN      AL,DX           ; READ PORT A
 08EE  1F                                POP     DS
-08EF  3C 0AA                            CMP     AL,0AAH             ; DATA PATTERN SAME
-08F1  75 06                             JNE     F17                 ; NO - CHECK NEXT PRT CD
+08EF  3C 0AA                            CMP     AL,0AAH         ; DATA PATTERN SAME
+08F1  75 06                             JNE     F17             ; NO - CHECK NEXT PRT CD
 08F3  89 94 0008 R                      MOV     PRINTER_BASE[SI],DX ; YES - STORE PRT BASE ADDR
-08F7  46                                INC     SI                  ; INCREMENT TO NEXT WORD
+08F7  46                                INC     SI              ; INCREMENT TO NEXT WORD
 08F8  46                                INC     SI
-08F9  45                        F17:    INC     BP                  ; POINT TO NEXT BASE ADDR
+08F9  45                        F17:    INC     BP              ; POINT TO NEXT BASE ADDR
 08FA  45                                INC     BP
-08FB  83 FD 41                          CMP     BP,OFFSET F4E       ; ALL POSSIBLE ADDRS CHECKED?
-08FE  75 E5                             JNE     F16                 ; PRT_BASE
-0900  33 DB                             XOR     BX,BX               ; SET ADDRESS BASE
-0902  BA 03FA                           MOV     DX,03FAH            ; POINT TO INT ID REGISTER
-0905  EC                                IN      AL,DX               ; READ PORT
-0906  A8 F8                             TEST    AL,0F8H             ; SEEM TO BE AN 8250
+08FB  83 FD 41                          CMP     BP,OFFSET F4E   ; ALL POSSIBLE ADDRS CHECKED?
+08FE  75 E5                             JNE     F16             ; PRT_BASE
+0900  33 DB                             XOR     BX,BX           ; SET ADDRESS BASE
+0902  BA 03FA                           MOV     DX,03FAH        ; POINT TO INT ID REGISTER
+0905  EC                                IN      AL,DX           ; READ PORT
+0906  A8 F8                             TEST    AL,0F8H         ; SEEM TO BE AN 8250
 0908  75 08                             JNZ     F18
 090A  C7 87 0000 R 03F8                 MOV     RS232_BASE[BX],3F8H ; SETUP RS232 CD #1 ADDR
 0910  43                                INC     BX
 0911  43                                INC     BX
 0912  C7 87 0000 R 02F8         F18:    MOV     RS232_BASE[BX],2F8H ; SETUP RS232 #2
-0918  43                                INC     BX                  ; (ALWAYS PRESENT)
+0918  43                                INC     BX              ; (ALWAYS PRESENT)
 0919  43                                INC     BX
                                 ;------ SET UP EQUIP FLAG TO INDICATE NUMBER OF PRINTERS AND RS232
                                 ;       CARDS
-091A  8B C6                             MOV     AX,SI               ; SI HAS 2* NUMBER OF PRINTERS
-091C  B1 03                             MOV     CL,3                ; SHIFT COUNT
-091E  D2 C8                             ROR     AL,CL               ; ROTATE RIGHT 3 POSITIONS
-0920  0A C3                             OR      AL,BL               ; OR IN THE RS232 COUNT
+091A  8B C6                             MOV     AX,SI           ; SI HAS 2* NUMBER OF PRINTERS
+091C  B1 03                             MOV     CL,3            ; SHIFT COUNT
+091E  D2 C8                             ROR     AL,CL           ; ROTATE RIGHT 3 POSITIONS
+0920  0A C3                             OR      AL,BL           ; OR IN THE RS232 COUNT
 0922  08 06 0011 R                      OR      BYTE PTR EQUIP_FLAG+1,AL ; STORE AS SECOND BYTE
                                 ;------ SET EQUIP. FLAG TO INDICATE PRESENCE OF SERIAL PRINTER
                                 ;       ATTACHED TO ON BOARD RS232 PORT. ---ASSUMPTION---"RTS" IS TIED TO
                                 ;       "CARRIER DETECT" IN THE CABLE PLUG FOR THIS SPECIFIC PRINTER.
-0926  8B C8                             MOV     CX,AX               ; SAVE PRINTER COUNT IN CX
-0928  BB 02FE                           MOV     BX,2FEH             ; SET POINTER TO MODEM STATUS REG
-092B  BA 02FC                           MOV     DX,2FCH             ; POINT TO MODEM CONTROL REG
-092E  2A C0                             SUB     AL,AL               ;
-0930  EE                                OUT     DX,AL               ; CLEAR IT
-0931  EB 00                             JMP     $+2                 ; DELAY
-0933  87 D3                             XCHG    DX,BX               ; POINT TO MODEM STATUS REG
-0935  EC                                IN      AL,DX               ; CLEAR IT
-0936  EB 00                             JMP     $+2                 ; DELAY
-0938  B0 02                             MOV     AL,02H              ; BRING UP RTS
-093A  87 D3                             XCHG    DX,BX               ; POINT TO MODEM CONTROL REG
-093C  EE                                OUT     DX,AL               ;
-093D  EB 00                             JMP     $+2                 ; DELAY
-093F  87 D3                             XCHG    DX,BX               ; POINT TO MODEM STATUS REG
-0941  EC                                IN      AL,DX               ; GET CONTENTS
-0942  A8 08                             TEST    AL,00001000B        ; HAS CARRIER DETECT CHANGED?
-0944  74 23                             JZ      F19_A               ; NO, THEN NO PRINTER
-0946  A8 01                             TEST    AL,00000001B        ; DID CTS CHANGE? (AS WITH WRAP
-                                                                    ; CONNECTOR INSTALLED}
-0948  75 1F                             JNZ     F19_A               ; WRAP CONNECTOR ON IF IT DID
-094A  2A C0                             SUB     AL,AL               ; SET RTS OFF
-094C  87 D3                             XCHG    DX,BX               ; POINT TO MODEM CONTROL REG
-094E  EE                                OUT     DX,AL               ; DROP RTS
-094F  EB 00                             JMP     $+2                 ; DELAY
-0951  87 D3                             XCHG    DX,BX               ; MODEM STATUS REG
-0953  EC                                IN      AL,DX               ; GET STATUS
-0954  24 08                             AND     AL,00001000B        ; HAS CARRIER DETECT CHANGED?
-0956  74 11                             JZ      F19_A               ; NO, THEN NO PRINTER
-0958  80 C9 20                          OR      CL,00100000B        ; CARRIER DETECT IS FOLLOWING RTS-INDICATE SERIAL PRINTER ATTACHED
-095B  F6 C1 C0                          TEST    CL,11000000B        ; CHECK FOR NO PARALLEL PRINTERS
-095E  75 09                             JNZ     F19_A               ; DO NOTHING IF PARALLEL PRINTER
-                                                                    ; ATTACHED
-0960  80 C9 40                          OR      CL,01000000B        ; INDICATE 1 PRINTER ATTACHED
-0963  C7 06 0008 R 02F8                 MOV     PRINTER_BASE,2F8H   ; STORE ON-BOARD RS232 BASE IN
-                                                                    ; PRINTER BASE
+0926  8B C8                             MOV     CX,AX           ; SAVE PRINTER COUNT IN CX
+0928  BB 02FE                           MOV     BX,2FEH         ; SET POINTER TO MODEM STATUS REG
+092B  BA 02FC                           MOV     DX,2FCH         ; POINT TO MODEM CONTROL REG
+092E  2A C0                             SUB     AL,AL           ;
+0930  EE                                OUT     DX,AL           ; CLEAR IT
+0931  EB 00                             JMP     $+2             ; DELAY
+0933  87 D3                             XCHG    DX,BX           ; POINT TO MODEM STATUS REG
+0935  EC                                IN      AL,DX           ; CLEAR IT
+0936  EB 00                             JMP     $+2             ; DELAY
+0938  B0 02                             MOV     AL,02H          ; BRING UP RTS
+093A  87 D3                             XCHG    DX,BX           ; POINT TO MODEM CONTROL REG
+093C  EE                                OUT     DX,AL           ;
+093D  EB 00                             JMP     $+2             ; DELAY
+093F  87 D3                             XCHG    DX,BX           ; POINT TO MODEM STATUS REG
+0941  EC                                IN      AL,DX           ; GET CONTENTS
+0942  A8 08                             TEST    AL,00001000B    ; HAS CARRIER DETECT CHANGED?
+0944  74 23                             JZ      F19_A           ; NO, THEN NO PRINTER
+0946  A8 01                             TEST    AL,00000001B    ; DID CTS CHANGE? (AS WITH WRAP
+                                                                ; CONNECTOR INSTALLED}
+0948  75 1F                             JNZ     F19_A           ; WRAP CONNECTOR ON IF IT DID
+094A  2A C0                             SUB     AL,AL           ; SET RTS OFF
+094C  87 D3                             XCHG    DX,BX           ; POINT TO MODEM CONTROL REG
+094E  EE                                OUT     DX,AL           ; DROP RTS
+094F  EB 00                             JMP     $+2             ; DELAY
+0951  87 D3                             XCHG    DX,BX           ; MODEM STATUS REG
+0953  EC                                IN      AL,DX           ; GET STATUS
+0954  24 08                             AND     AL,00001000B    ; HAS CARRIER DETECT CHANGED?
+0956  74 11                             JZ      F19_A           ; NO, THEN NO PRINTER
+0958  80 C9 20                          OR      CL,00100000B    ; CARRIER DETECT IS FOLLOWING RTS-INDICATE SERIAL PRINTER ATTACHED
+095B  F6 C1 C0                          TEST    CL,11000000B    ; CHECK FOR NO PARALLEL PRINTERS
+095E  75 09                             JNZ     F19_A           ; DO NOTHING IF PARALLEL PRINTER
+                                                                ; ATTACHED
+0960  80 C9 40                          OR      CL,01000000B    ; INDICATE 1 PRINTER ATTACHED
+0963  C7 06 0008 R 02F8                 MOV     PRINTER_BASE,2F8 ; STORE ON-BOARD RS232 BASE IN
+                                                                ; PRINTER BASE
 0969  08 0E 0011 R              F19_A:  OR      BYTE PTR EQUIP_FLAG+1,CL ; STORE AS SECOND BYTE
-096D  33 D2                             XOR     DX,DX               ; POINT TO FIRST SERIAL PORT
-096F  F6 C1 40                          TEST    CL,040H             ; SERIAL PRINTER ATTACHED?
-0972  74 18                             JZ      F19_C               ; NO, SKIP INIT
-0974  81 3E 0000 R 02F8                 CMP     RS232_BASE,02F8H    ; PRINTER IN FIRST SERIAL PORT
-097A  74 01                             JE      F19_B               ; YES, JUMP
-097C  42                                INC     DX                  ; NO POINT TO SECOND SERIAL PORT
+096D  33 D2                             XOR     DX,DX           ; POINT TO FIRST SERIAL PORT
+096F  F6 C1 40                          TEST    CL,040H         ; SERIAL PRINTER ATTACHED?
+0972  74 18                             JZ      F19_C           ; NO, SKIP INIT
+0974  81 3E 0000 R 02F8                 CMP     RS232_BASE,02F8H ; PRINTER IN FIRST SERIAL PORT
+097A  74 01                             JE      F19_B           ; YES, JUMP
+097C  42                                INC     DX              ; NO POINT TO SECOND SERIAL PORT
 097D                            F19_B:
-097D  B8 0087                           MOV     AX,87H              ; INIT SERIAL PRINTER
+097D  B8 0087                           MOV     AX,87H          ; INIT SERIAL PRINTER
 0980  CD 14                             INT     14H
-0982  F6 C4 1E                          TEST    AH,1EH              ; ERROR?
-0985  75 05                             JNZ     F19_C               ; YES, JUMP
-0987  B8 0118                           MOV     AX,0118H            ; SEND CANCEL COMMAND TO
-098A  CD 14                             INT     14H                 ; ..SERIAL PRINTER
+0982  F6 C4 1E                          TEST    AH,1EH          ; ERROR?
+0985  75 05                             JNZ     F19_C           ; YES, JUMP
+0987  B8 0118                           MOV     AX,0118H        ; SEND CANCEL COMMAND TO
+098A  CD 14                             INT     14H             ; ..SERIAL PRINTER
 ; --------------------------------------------------------------------------------------------------
 ; A-023
 ; --------------------------------------------------------------------------------------------------
-098C  BA 0201                   F19_C:  MOV     DX,0201H            ; GET MFG./ SERVICE  MODE INFO
-098F  EC                                IN      AL,DX               ; IS HIGH ORDER NIBBLE = 0?
-0990  24 F0                             AND     AL,0F0H             ; (BURN-IN MODE)
-0992  75 03                             JNZ     F19_1               ; ELSE GO TO BEGINNING OF POST
-0994  E9 0043 R                 F19_0:  JMP     START               ; SERVICE MODE LOOP?
-0997  3C 20                     F19_1:  CMP     AL,00100000B        ; BRANCH TO START
+098C  BA 0201                   F19_C:  MOV     DX,0201H        ; GET MFG./ SERVICE  MODE INFO
+098F  EC                                IN      AL,DX           ; IS HIGH ORDER NIBBLE = 0?
+0990  24 F0                             AND     AL,0F0H         ; (BURN-IN MODE)
+0992  75 03                             JNZ     F19_1           ; ELSE GO TO BEGINNING OF POST
+0994  E9 0043 R                 F19_0:  JMP     START           ; SERVICE MODE LOOP?
+0997  3C 20                     F19_1:  CMP     AL,00100000B    ; BRANCH TO START
 0999  74 F9                             JE      F19_0
-099B  81 3E 0072 R 4321                 CMP     RESET_FLAG,4321H    ; DIAG. CONTROL PROGRAM RESTART?
-09A1  74 0C                             JE      F19_3               ; NO, GO BOOT
-09A3  3C 10                             CMP     AL,00010000B        ; MFG DCP RUN REQUEST
+099B  81 3E 0072 R 4321                 CMP     RESET_FLAG,4321H ; DIAG. CONTROL PROGRAM RESTART?
+09A1  74 0C                             JE      F19_3           ; NO, GO BOOT
+09A3  3C 10                             CMP     AL,00010000B    ; MFG DCP RUN REQUEST
 09A5  74 08                             JE      F19_3
-09A7  C7 06 0072 R 1234                 MOV     RESET_FLAG,1234H    ; SET WARM START INDICATOR IN CASE
-                                                                    ; OF CARTRIDGE RESET
-09AD  CD 19                             INT     19H                 ; GO TO THE BOOT LOADER
+09A7  C7 06 0072 R 1234                 MOV     RESET_FLAG,1234H ; SET WARM START INDICATOR IN CASE
+                                                                ; OF CARTRIDGE RESET
+09AD  CD 19                             INT     19H             ; GO TO THE BOOT LOADER
 
 09AF  FA                        F19_3:  CLI
 09B0  2B C0                             SUB     AX,AX
@@ -2092,102 +2084,102 @@
 
 09BC                            E_MSG   PROC    NEAR
 09BC  BA 0201                           MOV     DX,201H
-09BF  EC                                IN      AL,DX               ; GET MODE BITS
-09C0  24 F0                             AND     AL,0F0H             ; ISOLATE BITS OF INTEREST
+09BF  EC                                IN      AL,DX           ; GET MODE BITS
+09C0  24 F0                             AND     AL,0F0H         ; ISOLATE BITS OF INTEREST
 09C2  75 03                             JNZ     EM0
-09C4  E9 0A61 R                         JMP     MFG_OUT             ; MANUFACTURING MODE (BURN-IN)
-09C7  3C 10                     EM0:    CMP     AL,00010000B        ;
+09C4  E9 0A61 R                         JMP     MFG_OUT         ; MANUFACTURING MODE (BURN-IN)
+09C7  3C 10                     EM0:    CMP     AL,00010000B    ;
 09C9  75 03                             JNE     EM1
-09CB  E9 0A61 R                         JMP     MFG_OUT             ; MFG. MODE (SYSTEM TEST)
-09CE  8A F0                     EM1:    MOV     DH,AL               ; SAVE MODE
-09D0  80 FF 0A                          CMP     BH,0AH              ; ERROR CODE ABOVE 0AH (CRT STARTED
-                                                                    ; DISPLAY POSSIBLE)?
-09D3  7C 63                             JL      BEEPS               ; DO BEEP OUTPUT IF BELOW 10H
-09D5  53                                PUSH    BX                  ; SAVE ERROR AND MODE FLAGS
+09CB  E9 0A61 R                         JMP     MFG_OUT         ; MFG. MODE (SYSTEM TEST)
+09CE  8A F0                     EM1:    MOV     DH,AL           ; SAVE MODE
+09D0  80 FF 0A                          CMP     BH,0AH          ; ERROR CODE ABOVE 0AH (CRT STARTED
+                                                                ; DISPLAY POSSIBLE)?
+09D3  7C 63                             JL      BEEPS           ; DO BEEP OUTPUT IF BELOW 10H
+09D5  53                                PUSH    BX              ; SAVE ERROR AND MODE FLAGS
 09D6  56                                PUSH    SI
 09D7  52                                PUSH    DX
-09D8  B4 02                             MOV     AH,2                ; SET CURSOR
-09DA  BA 1521                           MOV     DX,1521H            ; ROW 21, COL.33
-09DD  B7 07                             MOV     BH,7                ; PAGE 7
+09D8  B4 02                             MOV     AH,2            ; SET CURSOR
+09DA  BA 1521                           MOV     DX,1521H        ; ROW 21, COL.33
+09DD  B7 07                             MOV     BH,7            ; PAGE 7
 09DF  CD 10                             INT     10H
 09E1  BE 0030 R                         MOV     SI,OFFSET ERROR_ERR
-09E4  B9 0005                           MOV     CX,5                ; PRINT WORD "ERROR"
+09E4  B9 0005                           MOV     CX,5            ; PRINT WORD "ERROR"
 09E7  2E: 8A 04                 EM_O:   MOV     AL,CS:[SI]
 09EA  46                                INC     SI
 09EB  E8 18BA R                         CALL    PRT_HEX
-09EE  E2 F7                             LOOP    EM_O                ; LOOK FOR A BLANK SPACE TO POSSIBLY PUT CUSTOMER LEVEL ERRORS (IN
-                                                                    ; CASE OF MULTI ERROR)
+09EE  E2 F7                             LOOP    EM_O            ; LOOK FOR A BLANK SPACE TO POSSIBLY PUT CUSTOMER LEVEL ERRORS (IN
+                                                                ; CASE OF MULTI ERROR)
 09F0  B6 16                             MOV     DH,16H
-09F2  B4 02                     EM_1:   MOV     AH,2                ; SET CURSOR
-09F4  CD 10                             INT     10H                 ; ROW 22, COL33 (OR ABOVE, IF
-                                                                    ; MULTIPLE ERRS)
-09F6  B4 08                             MOV     AH,8                ; READ CHARACTER THIS POSITION
+09F2  B4 02                     EM_1:   MOV     AH,2            ; SET CURSOR
+09F4  CD 10                             INT     10H             ; ROW 22, COL33 (OR ABOVE, IF
+                                                                ; MULTIPLE ERRS)
+09F6  B4 08                             MOV     AH,8            ; READ CHARACTER THIS POSITION
 09F8  CD 10                             INT     10H
-09FA  FE C2                             INC     DL                  ; POINT TO NEXT POSTION
-09FC  3C 20                             CMP     AL,' '              ; BLANK?
-09FE  75 F2                             JNE     EM_1                ; GO CHECK NEXT POSITION, IF NOT
-0A00  5A                                POP     DX                  ; RECOVER ERROR POINTERS
+09FA  FE C2                             INC     DL              ; POINT TO NEXT POSTION
+09FC  3C 20                             CMP     AL,' '          ; BLANK?
+09FE  75 F2                             JNE     EM_1            ; GO CHECK NEXT POSITION, IF NOT
+0A00  5A                                POP     DX              ; RECOVER ERROR POINTERS
 0A01  5E                                POP     SI
 0A02  5B                                POP     BX
-0A03  80 FE 20                          CMP     DH,00100000B        ; SERVICE MODE?
-0A06  74 21                             JE      SERV_OUT            ;
-0A08  80 FE 40                          CMP     DH,01000000B        ;
+0A03  80 FE 20                          CMP     DH,00100000B    ; SERVICE MODE?
+0A06  74 21                             JE      SERV_OUT        ;
+0A08  80 FE 40                          CMP     DH,01000000B    ;
 0A0B  74 1C                             JE      SERV_OUT
-0A0D  2E: 8A 04                         MOV     AL,CS:[SI]          ; GET ERROR CHARACTER
-0A10  E8 18BA R                         CALL    PRT_HEX             ; DISPLAY IT
-0A13  80 FF 20                          CMP     BH,20H              ; ERROR BELOW 20? (MEM TROUBLE?)
+0A0D  2E: 8A 04                         MOV     AL,CS:[SI]      ; GET ERROR CHARACTER
+0A10  E8 18BA R                         CALL    PRT_HEX         ; DISPLAY IT
+0A13  80 FF 20                          CMP     BH,20H          ; ERROR BELOW 20? (MEM TROUBLE?)
 0A16  7D 03                             JNL     EM_2
-0A18  E9 0ABB R                         JMP     TOTLTPO             ; HALT SYSTEM IF SO.
+0A18  E9 0ABB R                         JMP     TOTLTPO         ; HALT SYSTEM IF SO.
 0A1B  1E                        EM_2:   PUSH    DS
 0A1C  50                                PUSH    AX
 0A1D  B8 ---- R                         MOV     AX,XXDATA
 0A20  8E D8                             MOV     DS,AX
-0A22  88 3E 0018 R                      MOV     POST_ERR,BH         ; SET ERROR FLAG NON-ZERO
+0A22  88 3E 0018 R                      MOV     POST_ERR,BH     ; SET ERROR FLAG NON-ZERO
 0A26  58                                POP     AX
 0A27  1F                                POP     DS
                                         ASSUME  DS:NOTHING
-0A28  C3                                RET                         ; RETURN TO CALLER
+0A28  C3                                RET                     ; RETURN TO CALLER
 ; --------------------------------------------------------------------------------------------------
 ; A-024
 ; --------------------------------------------------------------------------------------------------
 0A29                            SERV_OUT:
-0A29  8A C7                             MOV     AL,BH               ; PRINT MSB
+0A29  8A C7                             MOV     AL,BH           ; PRINT MSB
 0A2B  53                                PUSH    BX
-0A2C  E8 18A9 R                         CALL    XPC_BYTE            ; DISPLAY IT
+0A2C  E8 18A9 R                         CALL    XPC_BYTE        ; DISPLAY IT
 0A2F  5B                                POP     BX
-0A30  8A C3                             MOV     AL,BL               ; PRINT LSB
+0A30  8A C3                             MOV     AL,BL           ; PRINT LSB
 0A32  E8 18A9 R                         CALL    XPC_BYTE
 0A35  E9 0ABB R                         JMP     TOTLTPO
-0A38  FA                        BEEPS:  CLI                         ; SET CODE SEG= STACK SEG
-0A39  8C C8                             MOV     AX,CS               ; (STACK IS LOST, BUT THINGS ARE
-0A3B  8E D0                             MOV     SS,AX               ;  OVER, ANYWAY)
-0A3D  B2 02                             MOV     DL,2                ; 2 BEEPS
-0A3F  BC 0028 R                         MOV     SP,OFFSET EX_0      ; SET DUMMY RETURN
-0A42  B3 01                     EB:     MOV     BL,1                ; SHORT BEEP
-0A44  E9 FF31 R                         JMP     BEEP                ;
-0A47  E2 FE                     EB0:    LOOP    EB0                 ; WAIT (BEEPER OFF)
-0A49  FE CA                             DEC     DL                  ; DONE YET?
-0A4B  75 F5                             JNZ     EB                  ; LOOP IF NOT
-0A4D  80 FF 05                          CMP     BH,05H              ; 64K CARD ERROR?
-0A50  75 69                             JNE     TOTLTPO             ; END IF NOT
-0A52  80 FE 20                          CMP     DH,00100000B        ; SERVICE MODE?
-0A55  74 05                             JE      EB1                 ;
-0A57  80 FE 40                          CMP     DH,01000000B        ;
-0A5A  75 5F                             JNE     TOTLTPO             ; END IF NOT
-0A5C  B3 01                     EB1:    MOV     BL,1                ; ONE MORE BEEP FOR 64K ERROR IF IN
-                                                                    ; SERVICE MODE
+0A38  FA                        BEEPS:  CLI                     ; SET CODE SEG= STACK SEG
+0A39  8C C8                             MOV     AX,CS           ; (STACK IS LOST, BUT THINGS ARE
+0A3B  8E D0                             MOV     SS,AX           ;  OVER, ANYWAY)
+0A3D  B2 02                             MOV     DL,2            ; 2 BEEPS
+0A3F  BC 0028 R                         MOV     SP,OFFSET EX_0  ; SET DUMMY RETURN
+0A42  B3 01                     EB:     MOV     BL,1            ; SHORT BEEP
+0A44  E9 FF31 R                         JMP     BEEP            ;
+0A47  E2 FE                     EB0:    LOOP    EB0             ; WAIT (BEEPER OFF)
+0A49  FE CA                             DEC     DL              ; DONE YET?
+0A4B  75 F5                             JNZ     EB              ; LOOP IF NOT
+0A4D  80 FF 05                          CMP     BH,05H          ; 64K CARD ERROR?
+0A50  75 69                             JNE     TOTLTPO         ; END IF NOT
+0A52  80 FE 20                          CMP     DH,00100000B    ; SERVICE MODE?
+0A55  74 05                             JE      EB1             ;
+0A57  80 FE 40                          CMP     DH,01000000B    ;
+0A5A  75 5F                             JNE     TOTLTPO         ; END IF NOT
+0A5C  B3 01                     EB1:    MOV     BL,1            ; ONE MORE BEEP FOR 64K ERROR IF IN
+                                                                ; SERVICE MODE
 0A5E  E9 FF31 R                         JMP     BEEP
 0A61                            MFG_OUT:
 0A61  FA                                CLI
 0A62  E4 61                             IN      AL,PORT_B
 0A64  24 FC                             AND     AL,0FCH
 0A66  E6 61                             OUT     PORT_B,AL
-0A68  BA 0011                           MOV     DX,11H              ; SEND DATA TO  ADDRESSES 11,12
-0A6B  8A C7                             MOV     AL,BH               ;
-0A6D  EE                                OUT     DX,AL               ; SEND HIGH BYTE
-0A6E  42                                INC     DX                  ;
-0A6F  8A C3                             MOV     AL,BL               ;
-0A71  EE                                OUT     DX,AL               ; SEND LOW BYTE
+0A68  BA 0011                           MOV     DX,11H          ; SEND DATA TO  ADDRESSES 11,12
+0A6B  8A C7                             MOV     AL,BH           ;
+0A6D  EE                                OUT     DX,AL           ; SEND HIGH BYTE
+0A6E  42                                INC     DX              ;
+0A6F  8A C3                             MOV     AL,BL           ;
+0A71  EE                                OUT     DX,AL           ; SEND LOW BYTE
                                 ; INIT. ON-BOARD RS232 PORT FOR COMMUNICATIONS W/MFG MONITOR
                                         ASSUME  DS:XXDATA
 0A72  B8 ---- R                         MOV     AX,XXDATA
@@ -2545,26 +2537,26 @@
 ; --------------------------------------------------------------------------------------------------
 ; A-028
 ; --------------------------------------------------------------------------------------------------
-0BFB  E2 FE                     P5:     LOOP    P5                  ; RECOVER WORD COUNT
-0BFD  FE C8                             DEC     AL                  ; GET WORD
-0BFF  75 FA                             JNZ     P5                  ; = TO 0000
-0C01  8B CD                     P6:     MOV     CX,BP               ; ERROR IF NOT
-0C03  AD                        P7:     LODSW                       ; LOOP TILL DONE
-0C04  0B C0                             OR      AX,AX               ; THEN EXIT
-0C06  75 04                             JNZ     P8                  ; SAVE BITS IN ERROR
+0BFB  E2 FE                     P5:     LOOP    P5              ; RECOVER WORD COUNT
+0BFD  FE C8                             DEC     AL              ; GET WORD
+0BFF  75 FA                             JNZ     P5              ; = TO 0000
+0C01  8B CD                     P6:     MOV     CX,BP           ; ERROR IF NOT
+0C03  AD                        P7:     LODSW                   ; LOOP TILL DONE
+0C04  0B C0                             OR      AX,AX           ; THEN EXIT
+0C06  75 04                             JNZ     P8              ; SAVE BITS IN ERROR
 0C08  E2 F9                             LOOP    P7
 0C0A  EB 13                             JMP     SHORT P11
-0C0C  8B C8                     P8:     MOV     CX,AX               ; HIGH BYTE ERROR?
+0C0C  8B C8                     P8:     MOV     CX,AX           ; HIGH BYTE ERROR?
 0C0E  32 E4                             XOR     AH,AH
-0C10  0A ED                             OR      CH,CH               ; SET HIGH BYTE ERROR
-0C12  74 02                             JZ      P9                  ; LOW BYTE ERROR?
+0C10  0A ED                             OR      CH,CH           ; SET HIGH BYTE ERROR
+0C12  74 02                             JZ      P9              ; LOW BYTE ERROR?
 0C14  FE C4                             INC     AH
 0C16  0A C9                     P9:     OR      CL,CL
 0C18  74 03                             JZ      P10
 0C1A  80 C4 02                          ADD     AH,2
-0C1D  0A E4                     P10:    OR      AH,AH               ; SET ZERO FLAG=0 (ERROR INDICATION
-0C1F  FC                        P11:    CLD                         ; SET DIR FLAG BACK TO INCREMENT
-0C20  C3                                RET                         ; RETURN TO CALLER
+0C1D  0A E4                     P10:    OR      AH,AH           ; SET ZERO FLAG=0 (ERROR INDICATION
+0C1F  FC                        P11:    CLD                     ; SET DIR FLAG BACK TO INCREMENT
+0C20  C3                                RET                     ; RETURN TO CALLER
 0C21                            PODSTG  ENDP
 
                                 ;*******************************************************
@@ -2582,26 +2574,26 @@
 0C24  53                                PUSH    BX
 0C25  51                                PUSH    CX
 0C26  52                                PUSH    DX
-0C27  BD 0C4A R                         MOV     BP,OFFSET LOGO      ; POINT DH DL AT ROW,COLUMN 0,0
-0C2A  BA 8000                           MOV     DX,8000H            ; ATTRIBUTE OF CHARACTERS TO BE
-0C2D  B3 1F                             MOV     BL,00011111B        ; WRITTEN
+0C27  BD 0C4A R                         MOV     BP,OFFSET LOGO  ; POINT DH DL AT ROW,COLUMN 0,0
+0C2A  BA 8000                           MOV     DX,8000H        ; ATTRIBUTE OF CHARACTERS TO BE
+0C2D  B3 1F                             MOV     BL,00011111B    ; WRITTEN
 
-0C2F  CD 82                             INT     82H                 ; CALL OUTPUT ROUTINE
-0C31  B3 00                             MOV     BL,00000000B        ; INITIALIZE ATTRIBUTE
-0C33  B2 00                             MOV     DL,0                ; INITIALIZE COLUMN
-0C35  B6 94                     AGAIN:  MOV     DH,94H              ; SET LINE
-0C37  BD 0CDD R                         MOV     BP,OFFSET COLOR     ; OUTPUT GIVEN COLOR BAR
-0C3A  CD 82                             INT     82H                 ; CALL OUTPUT ROUTINE
-0C3C  FE C3                             INC     BL                  ; INCREMENT ATTRIBUTE
-0C3E  80 FA 20                          CMP     DL,32               ; IS THE COLUMN COUNTER POINTING
-                                                                    ; PAST 40?
-0C41  7C F2                             JL      AGAIN               ; IF NOT, DO IT AGAIN
+0C2F  CD 82                             INT     82H             ; CALL OUTPUT ROUTINE
+0C31  B3 00                             MOV     BL,00000000B    ; INITIALIZE ATTRIBUTE
+0C33  B2 00                             MOV     DL,0            ; INITIALIZE COLUMN
+0C35  B6 94                     AGAIN:  MOV     DH,94H          ; SET LINE
+0C37  BD 0CDD R                         MOV     BP,OFFSET COLOR ; OUTPUT GIVEN COLOR BAR
+0C3A  CD 82                             INT     82H             ; CALL OUTPUT ROUTINE
+0C3C  FE C3                             INC     BL              ; INCREMENT ATTRIBUTE
+0C3E  80 FA 20                          CMP     DL,32           ; IS THE COLUMN COUNTER POINTING
+                                                                ; PAST 40?
+0C41  7C F2                             JL      AGAIN           ; IF NOT, DO IT AGAIN
 0C43  5A                                POP     DX
 0C44  59                                POP     CX
 0C45  5B                                POP     BX
 0C46  58                                POP     AX
-0C47  5D                                POP     BP                  ; RESTORE BP
-0C48  1F                                POP     DS                  ; RESTORE DS
+0C47  5D                                POP     BP              ; RESTORE BP
+0C48  1F                                POP     DS              ; RESTORE DS
 0C49  C3                                RET
 0C4A                            PUT_LOGO ENDP
 0C4A  03                        LOGO    DB      LOGO_E - LOGO
@@ -3856,3 +3848,3095 @@
 129D                            KB12_20:
 129D  C6 06 0087 R 00                   MOV     CUR_FUNC,0      ; CLEAR CURRENT FUNCTION
 12A2  CF                                IRET                    ; RETURN FROM INTERRUPT
+; --------------------------------------------------------------------------------------------------
+; A-41
+; --------------------------------------------------------------------------------------------------
+12A3  3A 06 0087 R              KB12_3: CMP     AL,CUR_FUNC     ; IS THIS BREAK OF FIRST FUNCTION?
+12A7  75 B7                             JNE     RET_INT         ; IGNORE
+12A9  80 26 0088 R DF                   AND     KB_FLAG_2,AND_MASK-FN_PENDING ; TURN OFF PENDING
+                                                                ; FUNCTION
+12AE  EB ED                             JMP     KB12_20         ; CLEAR CURRENT FUNCTION AND RETURN
+                                ;-----VALID MAKE KEY HAS BEEN PRESSED
+12B0  F6 06 0088 R 40           KB13:   TEST    KB_FLAG_2,FN_BREAK ; CHECK IF FUNCTION KEY HAS BEEN
+                                                                ; PRESSED
+12B5  74 0D                             JZ      KB14_1          ; JUMP IF NOT SET
+                                ;-----FUNCTION BREAK HAS ALREADY OCCURED
+12B7  80 3E 0087 R 00                   CMP     CUR_FUNC,0      ; IS THIS A NEW FUNCTION?
+12BC  74 06                             JZ      KB14_1          ; INITIALIZE NEW FUNCTION
+12BE  38 06 0087 R                      CMP     CUR_FUNC,AL     ; IS THIS NON-CURRENT FUNCTION
+12C2  75 8C                             JNZ     KB8S            ; JUMP IF NO FUNCTION IS PENDING
+                                                                ; ...TO RETRIEVE ORIGINAL SCAN CODE
+                                ;-----CHECK FOR SCAN CODE GENERATION SEQUENCE
+12C4  A2 0087 R                 KB14_1: MOV     CUR_FUNC,AL     ; INITIALIZE CURRENT FN
+12C7  3C 04                     KB16:   CMP     AL,PRT_SCREEN   ; IS THIS A SIMULATED SEQUENCE?
+12C9  7F 91                             JG      CONT_INT        ; JUMP IF THIS IS A SIMPLE
+                                                                ; TRANSLATION
+12CB  74 34                             JZ      PRTSC           ; DO THE PRINT SCREEN FUNCTION
+12CD  3C 03                             CMP     AL,PAUSE        ; IS THIS THE HOLD FUNCTION?
+12CF  74 1A                             JZ      KB16_1          ; DO THE PAUSE FUNCTION
+                                ;-----BREAK OR ECHO
+12D1  FE C8                             DEC     AL              ; POINT AT BASE
+12D3  D0 E0                             SHL     AL,1
+12D5  D0 E0                             SHL     AL,1            ; MULTIPLY BY 4
+12D7  98                                CBW
+12D8  2E: 8D 36 108B R                  LEA     SI,SCAN         ; ADDRESS SEQUENCE OF SIMULATED
+                                                                ; KEYSTROKES
+12DD  03 F0                             ADD     SI,AX           ; UPDATE TO POINT AT CORRECT SET
+12DF  B9 0004                           MOV     CX,4            ; LOOP COUNTER
+12E2                            GENERATE:
+12E2  2E: AC                            LODS    SCAN            ; GET SCAN CODE FROM TABLE
+12E4  E6 60                             OUT     KBPORT,AL
+12E6  CD 09                             INT     9H              ; PROCESS IT
+12E8  E2 F8                             LOOP    GENERATE        ; GET NEXT
+12EA  CF                                IRET
+                                ;-----PUT KEYBOARD IN HOLD STATE
+12EB  F6 06 0018 R 08           KB16_1: TEST    KB_FLAG_1,HOLD_STATE ; CANNOT GO IN HOLD STATE IF
+                                                                ; ITS ACTIVE
+12F0  75 0E                             JNZ     KB16_2          ; DONE WITH INTERRUPT
+12F2  80 0E 0018 R 08                   OR      KB_FLAG_1,HOLD_STATE ; TURN ON HOLD FLAG
+12F7  E4 A0                             IN      AL,NMI_PORT     ; RESET KEYBOARD LATCH
+12F9  F6 06 0018 R 08           HOLD:   TEST    KB_FLAG_1,HOLD_STATE ; STILL IN HOLD STATE?
+12FE  75 F9                             JNZ     HOLD            ; CONTINUE LOOPING UNTIL KEY IS
+                                                                ; PRESSED
+1300  CF                        KB16_2: IRET                    ; RETURN FROM INTERRUPT 48H
+                                ;-----PRINT SCREEN FUNCTION
+1301  F6 06 0018 R 08           PRTSC:  TEST    KB_FLAG_1,HOLD_STATE ; IS HOLD STATE IN PROGRESS?
+1306  74 06                             JZ      KB16_3          ; OK TO CONTINUE WITH PRTSC
+1308  80 26 0018 R F7                   AND     KB_FLAG_1,0FFH-HOLD_STATE ; TURN OFF FLAG
+130D  CF                                IRET
+130E  83 C4 06                  KB16_3: ADD     SP,3*2          ; GET RID OF CALL TO INTERRUPT 48H
+1311  07                                POP     ES              ; POP REGISTERS THAT AREN'T
+                                                                ; MODIFIED IN INT5
+1312  1F                                POP     DS
+1313  5A                                POP     DX
+1314  59                                POP     CX
+1315  5B                                POP     BX
+1316  E4 A0                             IN      AL,NMI_PORT     ; RESET KEYBOARD LATCH
+1318  CD 05                             INT     5H              ; ISSUE INTERRUPT
+131A  58                                POP     AX
+131B  5F                                POP     DI
+131C  5E                                POP     SI
+131D  CF                                IRET
+131E                            KEY62_INT ENDP
+                                ;----------------------------------------------------------------
+                                ; TYPAMATIC
+                                ;       THIS ROUTINE WILL CHECK KEYBOARD STATUS BITS IN KB_FLAG_2
+                                ;       AND DETERMINE WHAT STATE THE KEYBOARD IS IN.  APPROPRIATE
+                                ;       ACTION WILL BE TAKEN.
+                                ;
+                                ;INPUT  AL= SCAN CODE OF KEY WHICH TRIGGERED NON-MASKABLE INTERRUPT
+                                ;
+                                ;OUTPUT
+                                ;       CARRY BIT = 1 IF NO ACTION IS TO BE TAKEN.
+                                ;       CARRY BIT = 0 MEANS SCAN CODE IN AL SHOULD BE PROCESSED
+                                ;                     FURTHER.
+                                ;       MODIFICATIONS TO THE VARIABLES CUR_CHAR AND VAR_DELAY ARE
+                                ;       MADE.  ALSO THE PUTCHAR BIT IN KB_FLAG_2 IS TOGGLED WHEN
+                                ;       THE KEYBOARD IS IN HALF RATE MODE.
+                                ;----------------------------------------------------------------
+131E                            TPM     PROC    NEAR
+131E  53                                PUSH    BX
+131F  3A 06 0085 R                      CMP     CUR_CHAR,AL     ; IS THIS A NEW CHARACTER?
+1323  74 31                             JZ      TP2             ; JUMP IF SAME CHARACTER
+                                ;-----NEW CHARACTER CHECK FOR BREAK SEQUENCES
+1325  A8 80                             TEST    AL,BREAK_BIT    ; IS THE NEW KEY A BREAK KEY?
+1327  74 12                             JZ      TP0             ; JUMP IF NOT A BREAK
+1329  24 7F                             AND     AL,07FH         ; CLEAR BREAK BIT
+132B  3A 06 0085 R                      CMP     CUR_CHAR,AL     ; IS NEW CHARACTER THE BREAK OF
+                                                                ; LAST MAKE?
+132F  8A C4                             MOV     AL,AH           ; RETRIEVE ORIGINAL CHARACTER
+1331  75 05                             JNZ     TP              ; JUMP IF NOT THE SAME CHARACTER
+1333  C6 06 0085 R 00                   MOV     CUR_CHAR,00     ; CLEAR CURRENT CHARACTER
+1338  F8                        TP:     CLC                     ; CLEAR CARRY BIT
+1339  5B                                POP     BX
+133A  C3                                RET                     ; RETURN
+; --------------------------------------------------------------------------------------------------
+; A-42
+; --------------------------------------------------------------------------------------------------
+                                ;----INITIALIZE A NEW CHARACTER
+133B  A2 0085 R                 TP0:    MOV     CUR_CHAR,AL     ; SAVE NEW CHARACTER
+133E  80 26 0086 R F0                   AND     VAR_DELAY,0F0H  ; CLEAR VARIABLE DELAY
+1343  80 26 0088 R FE                   AND     KB_FLAG_2,0FEH  ; INITIAL PUTCHAR BIT AS ZERO
+1348  F6 06 0088 R 02                   TEST    KB_FLAG_2,INIT_DELAY ; ARE WE INCREASING THE
+134D  74 E9                             JZ      TP              ; INITIAL DELAY?
+134F  80 0E 0086 R 0F                   OR      VAR_DELAY,DELAY_RATE ; INCREASE DELAY BY 2X
+1354  EB E2                             JMP     SHORT TP        ; DEFAULT DELAY
+                                ;----CHECK IF WE ARE IN TYPAMATIC MODE AND IF DELAY IS OVER
+1356  F6 06 0088 R 08           TP2:    TEST    KB_FLAG_2,TYPE_OFF ; IS TYPAMATIC TURNED OFF?
+135B  75 2B                             JNZ     TP4             ; JUMP IF TYPAMATIC RATE IS OFF
+135D  8A 1E 0086 R                      MOV     BL,VAR_DELAY    ; GET VAR_DEALY
+1361  80 E3 0F                          AND     BL,0FH          ; MASK OFF HIGH ORDER(SCREEN RANGE)
+1364  0A DB                             OR      BL,BL           ; IS INITIAL DELAY OVER?
+1366  74 0D                             JZ      TP3             ; JUMP IF DELAY IS OVER
+1368  FE CB                             DEC     BL              ; DECREASE DELAY WAIT BY ANOTHER
+136A  80 26 0086 R F0                   AND     VAR_DELAY,0F0H  ; CHARACTER
+136F  08 1E 0086 R                      OR      VAR_DELAY,BL
+1373  EB 13                             JMP     SHORT TP4
+                                ;----CHECK IF TIME TO OUTPUT CHAR
+1375  F6 06 0088 R 04           TP3:    TEST    KB_FLAG_2,HALF_RATE ; ARE WE IN HALF RATE MODE
+137A  74 BC                             JZ      TP              ; JUMP IF WE ARE IN NORMAL MODE
+137C  80 36 0088 R 01                   XOR     KB_FLAG_2,PUTCHAR ; TOGGLE BIT
+1381  F6 06 0088 R 01                   TEST    KB_FLAG_2,PUTCHAR ; IS IT TIME TO PUT OUT A CHAR
+1386  75 B0                             JNZ     TP              ; NOT TIME TO OUTPUT CHARACTER
+1388                            TP4:                            ; SKIP THIS CHARACTER
+1388  F9                                STC                     ; SET CARRY FLAG
+1389  5B                                POP     BX
+138A  C3                                RET
+138B                            TPM     ENDP
+                                ;----------------------------------------------------------------
+                                ; THIS SUBROUTINE SETS DS TO POINT TO THE BIOS DATA AREA
+                                ; INPUT: NONE
+                                ; OUTPUT: DS IS SET
+                                ;----------------------------------------------------------------
+138B                            DDS     PROC    NEAR
+138B  50                                PUSH    AX
+138C  B8 0040                           MOV     AX,40H
+138F  8E D8                             MOV     DS,AX
+1391  58                                POP     AX
+1392  C3                                RET
+1393                            DDS     ENDP
+                                ;---- INT 1A -----------------------------------------------------
+                                ; TIME_OF_DAY/SOUND SOURCE SELECT
+                                ;     THIS ROUTINE ALLOWS THE CLOCK TO BE SET/READ.
+                                ;     AN INTERFACE FOR SETTING THE MULTIPLEXER FOR
+                                ;     AUDIO SOURCE IS ALSO PROVIDED
+                                ;
+                                ; INPUT
+                                ;     (AH) = 0     READ THE CURRENT CLOCK SETTING
+                                ;                 RETURNS CX = HIGH PORTION OF COUNT
+                                ;                         DX = LOW PORTION OF COUNT
+                                ;                         AL = 0 IF TIMER HAS NOT PASSED 24 HOURS
+                                ;                              SINCE LAST READ. <> 0 IF ON ANOTHER DAY
+                                ;     (AH) = 1     SET THE CURRENT CLOCK
+                                ;                 CX = HIGH PORTION OF COUNT
+                                ;                 DX = LOW PORTION OF COUNT
+                                ;     (AH) = 80H   SET UP SOUND MULTIPLEXER
+                                ;                 AL =(SOURCE OF SOUND) --> "AUDIO OUT" OR RF MODULATOR
+                                ;                     00 = 8253 CHANNEL 2
+                                ;                     01 = CASSETTE INPUT
+                                ;                     02 = "AUDIO IN" LINE ON I/O CHANNEL
+                                ;                     03 = COMPLEX SOUND GENERATOR CHIP
+                                ;
+                                ; NOTE: COUNTS OCCUR AT THE RATE OF 1193180/65536 COUNTS/SEC
+                                ;       (OR ABOUT 18.2 PER SECOND -- SEE EQUATES BELOW)
+                                ;----------------------------------------------------------------
+                                        ASSUME  CS:CODE,DS:DATA
+1393                            TIME_OF_DAY     PROC    FAR
+1393  FB                                STI                     ; INTERRUPTS BACK ON
+1394  1E                                PUSH    DS              ; SAVE SEGMENT
+1395  E8 138B R                         CALL    DDS
+1398  80 FC 80                          CMP     AH,80H          ; AH=80
+139B  74 2E                             JE      T4A             ; MUX_SET-UP
+139D  0A E4                             OR      AH,AH           ; AH=0
+139F  74 07                             JZ      T2              ; READ_TIME
+13A1  FE CC                             DEC     AH
+13A3  74 16                             JZ      T3              ; SET_TIME
+13A5  FB                        T1:     STI                     ; INTERRUPTS BACK ON
+13A6  1F                                POP     DS              ; RECOVER SEGMENT
+13A7  CF                                IRET                    ; RETURN TO CALLER
+13A8  FA                        T2:     CLI                     ; NO TIMER INTERRUPTS WHILE READING
+13A9  A0 0070 R                         MOV     AL,TIMER_OFL
+13AC  C6 06 0070 R 00                   MOV     TIMER_OFL,0     ; GET OVERFLOW, AND RESET THE FLAG
+13B1  8B 0E 006E R                      MOV     CX,TIMER_HIGH
+13B5  8B 16 006C R                      MOV     DX,TIMER_LOW
+13B9  EB EA                             JMP     T1              ; TOD_RETURN
+13BB  FA                        T3:     CLI                     ; NO INTERRUPTS WHILE WRITING
+13BC  89 16 006C R                      MOV     TIMER_LOW,DX
+13C0  89 0E 006E R                      MOV     TIMER_HIGH,CX   ; SET THE TIME
+13C4  C6 06 0070 R 00                   MOV     TIMER_OFL,0     ; RESET OVERFLOW
+13C9  EB DA                             JMP     T1              ; TOD_RETURN
+; --------------------------------------------------------------------------------------------------
+; A-43
+; --------------------------------------------------------------------------------------------------
+13CB  51                        T4A:    PUSH    CX              ;
+13CC  B1 05                             MOV     CL,5            ; SHIFT PARM BITS LEFT 5 POSITIONS
+13CE  D2 E0                             SAL     AL,CL           ; SAVE PARM
+13D0  86 C4                             XCHG    AL,AH           ; GET CURRENT PORT SETTINGS
+13D2  E4 61                             IN      AL,PORT_B       ; ISOLATE MUX BITS
+13D4  24 9F                             AND     AL,10011111B    ; COMBINE PORT BITS/PARM BITS
+13D6  0A C4                             OR      AL,AH           ; SET PORT TO NEW VALUE
+13D8  E6 61                             OUT     PORT_B,AL
+13DA  59                                POP     CX
+13DB  EB C8                             JMP     T1              ; TOD_RETURN
+13DD                            TIME_OF_DAY     ENDP
+                                ;----- INT 16 ------------------------------------------------
+                                ; KEYBOARD I/O
+                                ;       THESE ROUTINES PROVIDE KEYBOARD SUPPORT
+                                ; INPUT
+                                ;       (AH)=0  READ THE NEXT ASCII CHARACTER STRUCK FROM THE
+                                ;               KEYBOARD, RETURN THE RESULT IN (AL), SCAN CODE IN
+                                ;               (AH)
+                                ;       (AH)=1  SET THE Z FLAG TO INDICATE IF AN ASCII CHARACTER IS
+                                ;               AVAILABLE TO BE READ.
+                                ;                       (ZF)=1 -- NO CODE AVAILABLE
+                                ;                       (ZF)=0 -- CODE IS AVAILABLE
+                                ;               IF ZF = 0, THE NEXT CHARACTER IN THE BUFFER TO BE
+                                ;               READ IS IN AX, AND THE ENTRY REMAINS IN THE BUFFER
+                                ;       (AH)=2  RETURN THE CURRENT SHIFT STATUS IN AL REGISTER
+                                ;               THE BIT SETTINGS FOR THIS CODE ARE INDICATED IN THE
+                                ;               THE EQUATES FOR KB_FLAG
+                                ;       (AH)=3  SET TYPAMATIC RATES. THE TYPAMATIC RATE CAN BE
+                                ;               CHANGED USING THE FOLLOWING FUNCTIONS:
+                                ;                       (AL)=0   RETURN TO DEFAULT.  RESTORES ORIGINAL
+                                ;                               STATE. I.E. TYPAMATIC ON, NORMAL INITIAL
+                                ;                               DELAY, AND NORMAL TYPAMATIC RATE.
+                                ;                       (AL)=1   INCREASE INITIAL DELAY. THIS IS THE
+                                ;                               DELAY BETWEEN THE FIRST CHARACTER AND
+                                ;                               THE BURST OF TYPAMATIC CHARS.
+                                ;                       (AL)=2   HALF_RATE. SLOWS TYPAMATIC CHARACTERS
+                                ;                               BY ONE HALF.
+                                ;                       (AL)=3   COMBINES AL=1 AND AL=2. INCREASES
+                                ;                               INITIAL DELAY AND SLOWS TYPAMATIC
+                                ;                               CHARACTERS BY ONE HALF.
+                                ;                       (AL)=4   TURN OFF TYPAMATIC CHARACTERS. ONLY THE
+                                ;                               FIRST CHARACTER IS HONORED. ALL OTHERS
+                                ;                               ARE IGNORED.
+                                ;               AL IS RANGE CHECKED. IF AL<0 OR AL>4 THE STATE
+                                ;               REMAINS THE SAME.
+                                ;               ***NOTE*** EACH TIME THE TYPAMATIC RATES ARE
+                                ;               CHANGED ALL PREVIOUS STATES ARE REMOVED. I.E. IF
+                                ;               THE KEYBOARD IS IN THE HALF RATE MODE AND YOU WANT
+                                ;               TO ADD AN INCREASE IN TYPAMATIC DELAY, YOU MUST
+                                ;               CALL THIS ROUTINE WITH AH=3 AND AL=3.
+                                ;       (AH)=4   ADJUST KEYBOARD BY THE VALUE IN AL AS FOLLOWS:
+                                ;                       (AL)=0   TURN OFF KEYBOARD CLICK.
+                                ;                       (AL)=1   TURN ON KEYBOARD CLICK.
+                                ;               AL IS RANGE CHECKED. THE STATE IS UNALTERED IF
+                                ;               AL <> 1,0.
+                                ; OUTPUT
+                                ;       AS NOTED ABOVE, ONLY AX AND FLAGS CHANGED
+                                ;       ALL REGISTERS RETAINED
+                                ;-------------------------------------------------------------------------
+13DD                            KEYBOARD_IO
+13DD                                    PROC    FAR
+                                ASSUME  CS:CODE,DS:DATA
+13DD  FB                                STI                     ; INTERRUPTS BACK ON
+13DE  1E                                PUSH    DS              ; SAVE CURRENT DS
+13DF  53                                PUSH    BX              ; SAVE BX TEMPORARILY
+13E0  E8 138B R                         CALL    DDS             ; POINT DS AT BIOS DATA SEGMENT
+13E3  0A E4                             OR      AH,AH           ; AH=0
+13E5  74 0A                             JZ      K1              ; ASCII_READ
+13E7  FE CC                             DEC     AH              ; AH=1
+13E9  74 1E                             JZ      K2              ; ASCII_STATUS
+13EB  FE CC                             DEC     AH              ; AH=2
+13ED  74 2B                             JZ      K3              ; SHIFT_STATUS
+13EF  EB 2E                             JMP     SHORT K3_1
+                                ;------- READ THE KEY TO FIGURE OUT WHAT TO DO
+13F1                            K1:                             ; ASCII READ
+13F1  FB                                STI                     ; INTERRUPTS BACK ON DURING LOOP
+13F2  90                                NOP                     ; ALLOW AN INTERRUPT TO OCCUR
+13F3  FA                                CLI                     ; INTERRUPTS BACK OFF
+13F4  8B 1E 001A R                      MOV     BX,BUFFER_HEAD  ; GET POINTER TO HEAD OF BUFFER
+13F8  3B 1E 001C R                      CMP     BX,BUFFER_TAIL  ; TEST END OF BUFFER
+13FC  74 F3                             JZ      K1              ; LOOP UNTIL SOMETHING IN BUFFER
+13FE  8B 07                             MOV     AX,[BX]         ; GET SCAN CODE AND ASCII CODE
+1400  E8 144F R                         CALL    K4              ; MOVE POINTER TO NEXT POSITION
+1403  89 1E 001A R                      MOV     BUFFER_HEAD,BX  ; STORE VALUE IN VARIABLE
+1407  EB 43                             JMP     SHORT RET_INT16
+                                ;------- ASCII STATUS
+1409  FA                        K2:     CLI                     ; INTERRUPTS OFF
+140A  8B 1E 001A R                      MOV     BX,BUFFER_HEAD  ; GET HEAD POINTER
+140E  3B 1E 001C R                      CMP     BX,BUFFER_TAIL  ; IF EQUAL (Z=1) THEN NOTHING THERE
+1412  8B 07                             MOV     AX,[BX]
+1414  FB                                STI                     ; INTERRUPTS BACK ON
+1415  5B                                POP     BX              ; RECOVER REGISTER
+1416  1F                                POP     DS              ; RECOVER SEGMENT
+1417  CA 0002                           RET     2               ; THROW AWAY FLAGS
+                                ;------- SHIFT STATUS
+141A  A0 0017 R                 K3:     MOV     AL,KB_FLAG      ; GET THE SHIFT STATUS FLAGS
+141D  EB 2D                             JMP     SHORT RET_INT16
+; --------------------------------------------------------------------------------------------------
+; A-44
+; --------------------------------------------------------------------------------------------------
+141F  FE CC                     K3_1:   DEC     AH              ; AH=3, ADJUST TYPAMATIC
+1421  74 1A                             JZ      K3_3            ; RANGE CHECK FOR AH=4
+1423  FE CC                             DEC     AH              ; ILLEGAL FUNCTION CALL
+1425  75 25                             JNZ     RET_INT16       ; TURN OFF KEYBOARD CLICK?
+1427  0A C0                             OR      AL,AL
+1429  75 07                             JNZ     K3_2            ; JUMP FOR RANGE CHECK
+142B  80 26 0018 R FB                   AND     KB_FLAG_1,AND_MASK-CLICK_ON ; TURN OFF CLICK
+1430  EB 1A                             JMP     SHORT RET_INT16
+1432  3C 01                     K3_2:   CMP     AL,1            ; RANGE CHECK
+1434  75 16                             JNE     RET_INT16       ; NOT IN RANGE, RETURN
+1436  80 0E 0018 R 04                   OR      KB_FLAG_1,CLICK_ON ; TURN ON KEYBOARD CLICK
+143B  EB 0F                             JMP     SHORT RET_INT16
+                                ;------- SET TYPAMATIC
+143D  3C 04                     K3_3:   CMP     AL,4            ; CHECK FOR CORRECT RANGE
+143F  7F 0B                             JG      RET_INT16       ; IF ILLEGAL VALUE IN AL IGNORE
+1441  80 26 0088 R F1                   AND     KB_FLAG_2,0F1H  ; MASK OFF ANY OLD TYPAMATIC STATES
+1446  D0 E0                             SHL     AL,1            ; SHIFT TO PROPER POSITION
+1448  08 06 0088 R                      OR      KB_FLAG_2,AL
+144C                            RET_INT16:
+144C  5B                                POP     BX              ; RECOVER REGISTER
+144D  1F                                POP     DS              ; RECOVER REGISTER
+144E  CF                                IRET                    ; RETURN TO CALLER
+144F                            KEYBOARD_IO
+144F                                    ENDP
+
+144F                            ;------- INCREMENT A BUFFER POINTER
+144F                            K4      PROC    NEAR
+144F  43                                INC     BX              ; MOVE TO NEXT WORD IN LIST
+1450  43                                INC     BX
+1451  3B 1E 0082 R                      CMP     BX,BUFFER_END   ; AT END OF BUFFER?
+1455  75 04                             JNE     K5              ; NO, CONTINUE
+1457  8B 1E 0080 R                      MOV     BX,BUFFER_START ; YES, RESET TO BUFFER BEGINNING
+145B  C3                        K5:     RET
+145C                            K4      ENDP
+145C                            ;------- TABLE OF SHIFT KEYS AND MASK VALUES
+145C                            K6      LABEL   BYTE
+145C  52                                DB      INS_KEY         ; INSERT KEY
+145D  3A 45 46 38 1D                    DB      CAPS_KEY,NUM_KEY,SCROLL_KEY,ALT_KEY,CTL_KEY
+1462  2A 36                             DB      LEFT_KEY,RIGHT_KEY
+= 0008                          K6L     EQU     $-K6
+                                ;------- SHIFT_MASK_TABLE
+1464                            K7      LABEL   BYTE
+1464  80                                DB      INS_SHIFT       ; INSERT MODE SHIFT
+1465  40 20 10 08 04                    DB      CAPS_SHIFT,NUM_SHIFT,SCROLL_SHIFT,ALT_SHIFT,CTL_SHIFT
+146A  02 01                             DB      LEFT_SHIFT,RIGHT_SHIFT
+                                ;------- SCAN CODE TABLES
+146C  1B FF 00 FF FF FF         K8      DB      27,-1,0,-1,-1,-1,30,-1
+      1E FF
+1474  FF FF FF 1F FF 7F                 DB      -1,-1,-1,31,-1,127,-1,17
+      FF 11
+147C  17 05 12 14 19 15                 DB      23,5,18,20,25,21,9,15
+      09 0F
+1484  10 1B 1D 0A FF 01                 DB      16,27,29,10,-1,1,19
+      13
+148B  04 06 07 08 0A 0B                 DB      4,6,7,8,10,11,12,-1,-1
+      0C FF FF
+1494  FF FF 1C 1A 18 03                 DB      -1,-1,28,26,24,3,22,2
+      16 02
+149C  0E 0D FF FF FF FF                 DB      14,13,-1,-1,-1,-1,-1,-1
+      FF FF
+14A4  20 FF                             DB      ' ', -1
+                                ;------- CTL TABLE SCAN
+14A6                            K9      LABEL   BYTE
+14A6  5E 5F 60 61 62 63                 DB      94,95,96,97,98,99,100,101
+      64 65
+14AE  66 67 FF FF 77 FF                 DB      102,103,-1,-1,119,-1,132,-1
+      84 FF
+14B6  73 FF 74 FF 75 FF                 DB      115,-1,116,-1,117,-1,118,-1
+      76 FF
+14BE  FF                                DB      -1
+
+14BF                            ;------- LC TABLE
+14BF                            K10     LABEL   BYTE
+14BF  1B 31 32 33 34 35                 DB      01BH,'1234567890-=',08H,09H
+      36 37 38 39 30 2D
+      3D 08 09
+14CE  71 77 65 72 74 79                 DB      'qwertyuiop[]',0DH,-1,'asdfghjkl;''',027H
+      75 69 6F 70 5B 5D
+      0D FF 61 73 64 66
+      67 68 6A 6B 6C 3B
+      27
+14E7  60 FF 5C 7A 78 63                 DB      60H,-1,5CH,'zxcvbnm,./',-1,'*',-1,' ',' '
+      76 62 6E 6D 2C 2E
+      2F FF 2A FF 20
+14F8  FF                                DB      -1
+
+14F9                            ;------- UC TABLE
+14F9                            K11     LABEL   BYTE
+14F9  1B 21 40 23 24 25                 DB      27,'!@#$%',37,05EH,'&*()_+',08H,0
+      5E 26 2A 28 29 5F
+      2B 08 00
+1508  51 57 45 52 54 59                 DB      'QWERTYUIOP{}',0DH,-1,'ASDFGHJKL:"'
+      55 49 4F 50 7B 7D
+      0D FF 41 53 44 46
+      47 48 4A 4B 4C 3A
+      22
+1521  7E FF 7C 5A 58 43                 DB      07EH,-1,'ZXCVBNM<>?',-1,0,-1,' ', -1
+      56 42 4E 4D 3C 3E
+      3F FF 00 FF 20 FF
+; --------------------------------------------------------------------------------------------------
+; A-45
+; --------------------------------------------------------------------------------------------------
+                                ;-------   UC TABLE SCAN
+1533                            K12     LABEL   BYTE
+1533  54 55 56 57 58 59                 DB      84,85,86,87,88,89,90
+      5A
+153A  5B 5C 5D                          DB      91,92,93
+
+                                ;-------   ALT TABLE SCAN
+153D                            K13     LABEL   BYTE
+153D  68 59 6A 6B 6C                   DB      104,105,106,107,108
+1542  6D 6E 6F 70 71                   DB      109,110,111,112,113
+
+                                ;-------   NUM STATE TABLE
+1547                            K14     LABEL   BYTE
+1547  37 38 39 20 34 35                 DB      '789-456+1230. '
+      36 2B 31 32 33 30
+      2E
+
+                                ;-------   BASE CASE TABLE
+1554                            K15     LABEL   BYTE
+1554  47 48 49 FF 4B FF                 DB      71,72,73,-1,75,-1,77
+      4D
+155B  FF 4F 50 51 52 53                 DB      -1,79,80,81,82,83
+
+                                ;-------   KEYBOARD INTERRUPT ROUTINE
+1561                            KB_INT  PROC    FAR
+1561  FB                                STI                     ; ALLOW FURTHER INTERRUPTS
+1562  50                                PUSH    AX
+1563  53                                PUSH    BX
+1564  51                                PUSH    CX
+1565  52                                PUSH    DX
+1566  56                                PUSH    SI
+1567  57                                PUSH    DI
+1568  1E                                PUSH    DS
+1569  06                                PUSH    ES
+156A  FC                                CLD                     ; FORWARD DIRECTION
+156B  E8 13BB R                         CALL    DDS
+156E  8A E0                             MOV     AH,AL           ; SAVE SCAN CODE IN AH
+                                ;------- TEST FOR OVERRUN SCAN CODE FROM KEYBOARD
+1570  3C FF                             CMP     AL,0FFH         ; IS THIS AN OVERRUN CHAR?
+1572  75 1B                             JNZ     K16             ; NO, TEST FOR SHIFT KEY
+1574  BB 0080                           MOV     BX,80H          ; DURATION OF ERROR BEEP
+1577  B9 0048                           MOV     CX,48H          ; FREQUENCY OF TONE
+157A  E8 E035 R                         CALL    KB_NOISE        ; BUFFER FULL BEEP
+157D  80 26 0017 R F0                   AND     KB_FLAG,0F0H    ; CLEAR ALT,CLRL,LEFT AND RIGHT
+                                                                ; SHIFTS
+1582  80 26 0018 R 0F                   AND     KB_FLAG_1,0FH   ; CLEAR POTENTIAL BREAK OF INS,CAPS
+                                                                ; ,NUM AND SCROLL SHIFT
+1587  80 26 0088 R 1F                   AND     KB_FLAG_2,1FH   ; CLEAR FUNCTION STATES
+158C  E9 164A R                         JMP     K26             ; END OF INTERRUPT
+
+                                ;-------   TEST FOR SHIFT KEYS
+158F  24 7F                     K16:    AND     AL,07FH         ; TEST_SHIFT
+1591  0E                                PUSH    CS              ; TURN OFF THE BREAK BIT
+1592  07                                POP     ES
+1593  BF 145C R                         MOV     DI,OFFSET K6    ; ESTABLISH ADDRESS OF SHIFT TABLE
+1596  B9 0008                           MOV     CX,K6L          ; SHIFT KEY TABLE
+1599  F2/ AE                            REPNE   SCASB           ; LOOK THROUGH THE TABLE FOR A
+                                                                ; MATCH
+159B  8A C4                             MOV     AL,AH           ; RECOVER SCAN CODE
+159D  74 03                             JE      K17             ; JUMP IF MATCH FOUND
+159F  E9 163A R                         JMP     K25             ; IF NO MATCH, THEN SHIFT NOT FOUND
+
+15A2  81 EF 145D R              K17:    SUB     DI,OFFSET K6+1  ; ADJUST PTR TO SCAN CODE MATCH
+15A6  2E: 8A A5 1464 R                  MOV     AH,CS:K7[DI]    ; GET MASK INTO AH
+15AB  A8 80                             TEST    AL,80H          ; TEST FOR BREAK KEY
+15AD  75 51                             JNZ     K23             ; BREAK_SHIFT_FOUND
+
+                                ;------- SHIFT MAKE FOUND, DETERMINE SET OR TOGGLE
+15AF  80 FC 10                          CMP     AH,SCROLL_SHIFT
+15B2  73 07                             JAE     K18             ; IF SCROLL SHIFT OR ABOVE, TOGGLE
+                                                                ; KEY
+
+                                ;------- PLAIN SHIFT KEY, SET SHIFT ON
+15B4  08 26 0017 R                      OR      KB_FLAG,AH      ; TURN ON SHIFT BIT
+15B8  E9 164A R                         JMP     K26             ; INTERRUPT_RETURN
+
+                                ;-------   TOGGLED SHIFT KEY, TEST FOR 1ST MAKE OR NOT
+15BB  F6 06 0017 R 04           K18:    TEST    KB_FLAG,CTL_SHIFT ; SHIFT-TOGGLE
+15C0  75 78                             JNZ     K25             ; JUMP IF CTL STATE
+15C2  3C 52                             CMP     AL, INS_KEY     ; CHECK FOR INSERT KEY
+15C4  75 22                             JNZ     K22             ; JUMP IF NOT INSERT KEY
+15C6  F6 06 0017 R 08                   TEST    KB_FLAG,ALT_SHIFT ; CHECK FOR ALTERNATE SHIFT
+15CB  75 6D                             JNZ     K25             ; JUMP IF ALTERNATE SHIFT
+15CD  F6 06 0017 R 20                   TEST    KB_FLAG,NUM_STATE ; CHECK FOR BASE STATE
+15D2  75 0D                             JNZ     K21             ; JUMP IF NUM LOCK IS ON
+15D4  F6 06 0017 R 03                   TEST    KB_FLAG,LEFT_SHIFT+ RIGHT_SHIFT ;
+15D9  74 0D                             JZ      K22             ; JUMP IF BASE STATE
+
+15DB                            K20:                            ; NUMERIC ZERO, NOT INSERT KEY
+15DB  B8 5230                           MOV     AX,5230H        ; PUT OUT AN ASCII ZERO
+15DE  E9 17EC R                         JMP     K57             ; BUFFER_FILL
+                                                                ; MIGHT BE NUMERIC
+15E1                            K21:
+15E1  F6 06 0017 R 03                   TEST    KB_FLAG, LEFT_SHIFT+ RIGHT_SHIFT
+15E6  74 F3                             JZ      K20             ; JUMP NUMERIC, NOT INSERT
+15E8                            K22:                            ; SHIFT TOGGLE KEY HIT; PROCESS IT
+15E8  84 26 0018 R                      TEST    AH,KB_FLAG_1    ; IS KEY ALREADY DEPRESSED
+15EC  75 5C                             JNZ     K26             ; JUMP IF KEY ALREADY DEPRESSED
+15EE  08 26 0018 R                      OR      KB_FLAG_1,AH    ; INDICATE THAT THE KEY IS
+                                                                ; DEPRESSED
+
+15F2  30 26 0017 R                      XOR     KB_FLAG,AH      ; TOGGLE THE SHIFT STATE
+15F6  3C 52                             CMP     AL,INS_KEY      ; TEST FOR 1ST MAKE OF INSERT KEY
+15F8  75 50                             JNE     K26             ; JUMP IF NOT INSERT KEY
+15FA  B8 5200                           MOV     AX,INS_KEY*256  ; SET SCAN CODE INTO AH, 0 INTO AL
+15FD  E9 17EC R                         JMP     K57             ; PUT INTO OUTPUT BUFFER
+; --------------------------------------------------------------------------------------------------
+; A-46
+; --------------------------------------------------------------------------------------------------
+                                ;------- BREAK SHIFT FOUND
+1600  80 FC 10                  K23:    CMP     AH,SCROLL_SHIFT ; IS THIS A TOGGLE KEY
+1603  73 1A                             JAE     K24             ; YES, HANDLE BREAK TOGGLE
+1605  F6 D4                             NOT     AH              ; INVERT MASK
+1607  20 26 0017 R                      AND     KB_FLAG,AH      ; TURN OFF SHIFT BIT
+160B  3C B8                             CMP     AL,ALT_KEY+80H  ; IS THIS ALTERNATE SHIFT RELEASE
+160D  75 3B                             JNE     K26             ; INTERRUPT_RETURN
+                                ;------- ALTERNATE SHIFT KEY RELEASED, GET THE VALUE INTO BUFFER
+160F  A0 0019 R                         MOV     AL,ALT_INPUT    
+1612  32 E4                             XOR     AH,AH           ; SCAN CODE OF 0
+1614  88 26 0019 R                      MOV     ALT_INPUT,AH    ; ZERO OUT THE FIELD
+1618  0A C0                             OR      AL,AL           ; WAS THE INPUT=0?
+161A  74 2E                             JE      K26             ; INTERRUPT_RETURN
+161C  E9 17F5 R                         JMP     K58             ; BREAK-TOGGLE
+161F
+161F  3C BA                     K24:    CMP     AL,CAPS_KEY+BREAK_BIT ; SPECIAL CASE OF TOGGLE KEY
+1621  75 0F                             JNE     K24_1           ; JUMP AROUND POTENTIAL UPDATE
+1623  F6 06 0018 R 02                   TEST    KB_FLAG_1,CLICK_SEQUENCE ; TEST CLICK
+1628  74 08                             JZ      K24_1           ; JUMP IF NOT SPECIAL CASE
+162A  80 26 0018 R FD                   AND     KB_FLAG_1,AND_MASK-CLICK_SEQUENCE ; MASK OFF MAKE
+                                                                ; OF CLICK
+162F  EB 19 90                          JMP     K26             ; INTERRUPT IS OVER
+
+                                ;------- BREAK OF NORMAL TOGGLE
+1632  F6 D4                     K24_1:  NOT     AH              ; INVERT MASK
+1634  20 26 0018 R                      AND     KB_FLAG_1,AH
+1638  EB 10                             JMP     SHORT K26       ; INTERRUPT_RETURN
+
+                                ;------- TEST FOR HOLD STATE
+163A  3C 80                     K25:    CMP     AL,80H          ; NO-SHIFT-FOUND
+163C  73 0C                             JAE     K26             ; TEST FOR BREAK KEY
+                                                                ; NOTHING FOR BREAK CHARS FROM HERE
+                                                                ; ON
+163E  F6 06 0018 R 08                   TEST    KB_FLAG_1,HOLD_STATE ; ARE WE IN HOLD STATE?
+1643  74 0E                             JZ      K28             ; BRANCH AROUND TEST IF NOT
+1645  80 26 0018 R F7                   AND     KB_FLAG_1,NOT HOLD_STATE ; TURN OFF THE HOLD STATE
+                                                                ; BIT
+                                                                ; INTERRUPT-RETURN
+
+164A  07                        K26:    POP     ES
+164B  1F                                POP     DS
+164C  5F                                POP     DI
+164D  5E                                POP     SI
+164E  5A                                POP     DX
+164F  59                                POP     CX
+1650  5B                                POP     BX
+1651  58                                POP     AX
+1652  CF                                IRET                    ; RETURN, INTERRUPTS BACK ON WITH
+                                                                ; FLAG CHANGE
+
+                                ;------- NOT IN HOLD STATE, TEST FOR SPECIAL CHARS
+1653  F6 06 0017 R 08           K28:    TEST    KB_FLAG,ALT_SHIFT ; ARE WE IN ALTERNATE SHIFT
+1658  75 03                             JNZ     K29             ; JUMP IF ALTERNATE SHIFT
+165A  E9 1749 R                         JMP     K38             ; JUMP IF NOT ALTERNATE
+
+                                ;------- TEST FOR ALT+CTRL KEY SEQUENCES
+165D  F6 06 0017 R 04           K29:    TEST    KB_FLAG,CTL_SHIFT ; ARE WE IN CONTROL SHIFT ALSO
+1662  74 69                             JZ      K31             ; NO_RESET
+1664  3C 53                             CMP     AL,DEL_KEY      ; SHIFT STATE IS THERE, TEST KEY
+1666  75 09                             JNE     K29_1           ; NO_RESET
+
+                                ;------- CTL-ALT-DEL HAS BEEN FOUND, DO I/O CLEANUP
+1668  C7 06 0072 R 1234                 MOV     RESET_FLAG,1234H ; SET FLAG FOR RESET FUNCTION
+166E  E9 0043 R                         JMP     NEAR PTR RESET  ; JUMP TO POWER ON DIAGNOSTICS
+1671  3C 52                     K29_1:  CMP     AL,INS_KEY      ; CHECK FOR RESET WITH DIAGNOSTICS
+1673  75 09                             JNE     K29_2           ; CHECK FOR OTHER
+                                                                ; ALT-CTRL-SEQUENCES
+
+                                ;------- ALT-CTRL-INS HAS BEEN FOUND
+1675  C7 06 0072 R 4321                 MOV     RESET_FLAG,4321H ; SET FLAG FOR DIAGNOSTICS
+167B  E9 0043 R                         JMP     NEAR PTR RESET  ; LEVEL 1 DIAGNOSTICS
+167E  3C 3A                     K29_2:  CMP     AL,CAPS_KEY     ; CHECK FOR KEYBOARD CLICK TOGGLE
+1680  75 13                             JNE     K29_3           ; CHECK FOR SCREEN ADJUSTMENT
+
+                                ;------- ALT+CTRL+CAPSLOCK HAS BEEN FOUND
+1682  F6 06 0018 R 02                   TEST    KB_FLAG_1,CLICK_SEQUENCE
+1687  75 C1                             JNZ     K26             ; JUMP IF SEQUENCE HAS ALREADY
+                                                                ; OCCURED
+1689  80 36 0018 R 04                   XOR     KB_FLAG_1,CLICK_ON ; TOGGLE BIT FOR AUDIO KEYSTROKE
+                                                                ; FEEDBACK
+168E  80 0E 0018 R 02                   OR      KB_FLAG_1,CLICK_SEQUENCE ; SET CLICK_SEQUENCE STATE
+1693  EB B5                             JMP     SHORT K26       ; INTERRUPT IS OVER
+1695  3C 4D                     K29_3:  CMP     AL,RIGHT_ARROW  ; ADJUST SCREEN TO THE RIGHT?
+1697  75 12                             JNE     K29_4           ; LOOK FOR RIGHT ADJUSTMENT
+1699  E8 186E R                         CALL    GET_POS         ; GET THE # OF POSITIONS SCREEN IS
+                                                                ; SHIFTED
+169C  3C FC                             CMP     AL,0-RANGE      ; IS SCREEN SHIFTED AS FAR AS
+                                                                ; POSSIBLE?
+169E  7C AA                             JL      K26             ; OUT OF RANGE
+16A0  FE 0E 0089 R                      DEC     HORZ_POS        ; SHIFT VALUE TO THE RIGHT
+16A4  FE C8                             DEC     AL              ; DECREASE RANGE VALUE
+16A6  E8 187A R                         CALL    PUT_POS         ; RESTORE STORAGE LOCATION
+16A9  EB 14                             JMP     SHORT K29_5     ; ADJUST
+16AB  3C 4B                     K29_4:  CMP     AL,LEFT_ARROW   ; ADJUST SCREEN TO THE LEFT?
+16AD  75 1E                             JNE     K31             ; NOT AN ALT_CTRL SEQUENCE
+16AF  E8 186E R                         CALL    GET_POS         ; GET NUMBER OF POSITIONS SCREEN IS
+                                                                ; SHIFTED
+
+16B2  3C 04                             CMP     AL,RANGE        ; IS SCREEN SHIFTED AS FAR AS
+                                                                ; POSSIBLE?
+16B4  7F 94                             JG      K26             ; SHIFT SCREEN TO THE LEFT
+16B6  FE 06 0089 R                      INC     HORZ_POS        ; INCREASE NUMBER OF POSITIONS
+16BA  FE C0                             INC     AL              ; SCREEN IS SHIFTED
+
+16BC  E8 187A R                         CALL    PUT_POS         ; PUT POSTION BACK IN STORAGE
+; --------------------------------------------------------------------------------------------------
+; A-47
+; --------------------------------------------------------------------------------------------------
+16BF  B0 02                     K29_5:  MOV     AL,2            ; ADJUST
+16C1  BA 03D4                           MOV     DX,3D4H         ; ADDRESS TO CRT CONTROLLER
+16C4  EE                                OUT     DX,AL           ;
+16C5  A0 0089 R                         MOV     AL,HORZ_POS     ; COLUMN POSITION
+16C8  42                                INC     DX              ; POINT AT DATA REGISTER
+16C9  EE                                OUT     DX,AL           ; MOV POSITION
+16CA  E9 164A R                         JMP     K26             ;
+                                ;------- IN ALTERNATE SHIFT, RESET NOT FOUND
+16CD
+16CD  3C 39                     K31:    CMP     AL,57           ; NO-RESET
+16CF  75 29                             JNE     K32             ; TEST FOR SPACE KEY
+16D1  B0 20                             MOV     AL,' '          ; NOT THERE
+16D3  E9 17EC R                         JMP     K57             ; SET SPACE CHAR
+                                                                ; BUFFER_FILL
+                                ;------- ALT-INPUT-TABLE
+16D6                            K30     LABEL   BYTE
+16D6  52 4F 50 51 4B 4C                 DB      82,79,80,81,75,76,77
+      4D
+16DD  47 48 49                          DB      71,72,73        ; 10 NUMBERS ON KEYPAD
+                                ;------- SUPER-SHIFT-TABLE
+16E0  10 11 12 13 14 15                 DB      16,17,18,19,20,21,22,23 ; A-Z TYPEWRITER CHARS
+      16 17
+16E8  18 19 1E 1F 20 21                 DB      24,25,30,31,32,33,34,35
+      22 23
+16F0  24 25 26 2C 2D 2E                 DB      36,37,38,44,45,46,47,48
+      2F 30
+16F8  31 32                             DB      49,50
+                                ;------- LOOK FOR KEY PAD ENTRY
+16FA                            K32:                            ; ALT-KEY-PAD
+16FA  BF 16D6 R                         MOV     DI,OFFSET K30   ; ALT-INPUT-TABLE
+16FD  B9 000A                           MOV     CX,10           ; LOOK FOR ENTRY USING KEYPAD
+1700  F2/ AE                            REPNE   SCASB           ; LOOK FOR MATCH
+1702  75 13                             JNE     K33             ; NO_ALT_KEYPAD
+1704  81 EF 16D7 R                      SUB     DI,OFFSET K30+1 ; DI NOW HAS ENTRY VALUE
+1708  A0 0019 R                         MOV     AL,ALT_INPUT    ; GET THE CURRENT BYTE
+170B  B4 0A                             MOV     AH,10           ; MULTIPLY BY 10
+170D  F6 E4                             MUL     AH              ;
+170F  03 C7                             ADD     AX,DI           ; ADD IN THE LATEST ENTRY
+1711  A2 0019 R                         MOV     ALT_INPUT,AL    ; STORE IT AWAY
+1714  E9 164A R                         JMP     K26             ; THROW AWAY THAT KEYSTROKE
+
+1717
+1717  C6 06 0019 R 00           K33:    MOV     ALT_INPUT,0     ; NO-ALT-KEYPAD
+                                                                ; ZERO ANY PREVIOUS ENTRY INTO
+171C  B9 001A                           MOV     CX,26           ; INPUT
+171F  F2/ AE                            REPNE   SCASB           ; DI,ES ALREADY POINTING
+1721  75 05                             JNE     K34             ; LOOK FOR MATCH IN ALPHABET
+1723  32 C0                             XOR     AL,AL           ; NOT FOUND, FUNCTION KEY OR OTHER
+1725  E9 17EC R                         JMP     K57             ; ASCII CODE OF ZERO
+                                                                ; PUT IT IN THE BUFFER
+                                ;------- LOOK FOR TOP ROW OF ALTERNATE SHIFT
+1728  3C 02                     K34:    CMP     AL,2            ; ALT-TOP-ROW
+172A  72 0C                             JB      K35             ; KEY WITH '1' ON IT
+172C  3C 0E                             CMP     AL,14           ; NOT ONE OF INTERESTING KEYS
+172E  73 08                             JAE     K35             ; IS IT IN THE REGION?
+1730  80 C4 76                          ADD     AH,118          ; ALT-FUNCTION
+                                                                ; CONVERT PSEUDO SCAN CODE TO
+1733  32 C0                             XOR     AL,AL           ; INDICATE AS SUCH
+1735  E9 17EC R                         JMP     K57             ; BUFFER_FILL
+
+                                ;------- TRANSLATE ALTERNATE SHIFT PSEUDO SCAN CODES
+1738  3C 3B                     K35:    CMP     AL,59           ; ALT-FUNCTION
+173A  73 03                             JAE     K37             ; TEST FOR IN TABLE
+173C                            K36:    JMP     K26             ; CLOSE-RETURN
+                                                                ; IGNORE THE KEY
+173F                            K37:                            ; ALT-CONTINUE
+173F  3C 47                             CMP     AL,71           ; IN KEYPAD REGION
+1741  73 F9                             JAE     K36             ; IF SO, IGNORE
+1743  BB 153D R                         MOV     BX,OFFSET K13   ; ALT SHIFT PSEUDO SCAN TABLE
+1746  E9 1863 R                         JMP     K63             ; TRANSLATE THAT
+
+                                ;------- NOT IN ALTERNATE SHIFT
+1749  F6 06 0017 R 04           K38:    TEST    KB_FLAG,CTL_SHIFT ; NOT-ALT-SHIFT
+174E  74 34                             JZ      K44             ; ARE WE IN CONTROL SHIFT?
+                                                                ; NOT-CTL-SHIFT
+                                                                ; CONTROL SHIFT, TEST SPECIAL CHARACTERS
+                                ;------- TEST FOR BREAK AND PAUSE KEYS
+1750  3C 46                             CMP     AL,SCROLL_KEY   ; TEST FOR BREAK
+1752  75 19                             JNE     K41             ; NO-BREAK
+1754  8B 1E 001A R                      MOV     BX,BUFFER_HEAD  ; GET CURRENT BUFFER HEAD
+1758  C6 06 0071 R 80                   MOV     BIOS_BREAK,80H  ; TURN ON BIOS_BREAK BIT
+175D  CD 1B                             INT     1BH             ; BREAK INTERRUPT VECTOR
+175F  2B C0                             SUB     AX,AX           ; PUT OUT DUMMY CHARACTER
+1761  89 07                             MOV     [BX],AX         ; PUT DUMMY CHAR AT BUFFER HEAD
+1763  E8 144F R                         CALL    K4              ; UPDATE BUFFER POINTER
+1766  89 1E 001C R                      MOV     BUFFER_TAIL,BX  ; UPDATE TAIL
+176A  E9 164A R                         JMP     K26             ; DONE WITH INTERRUPT
+176D                            K41:                            ; NO-PAUSE
+                                ;------- TEST SPECIAL CASE KEY 55                                          
+176D  3C 37                             CMP     AL,55           ; NOT-KEY-55
+176F  75 06                             JNE     K42             ; START/STOP PRINTING SWITCH
+1771  B8 7200                           MOV     AX,7200H
+1774  EB 76 90                          JMP     K57             ; BUFFER_FILL
+; --------------------------------------------------------------------------------------------------
+; A-48
+; --------------------------------------------------------------------------------------------------
+                                ;-------  SET UP TO TRANSLATE CONTROL SHIFT
+1777  BB 146C R                 K42:    MOV     BX,OFFSET K8    ; SET UP TO TRANSLATE CTL
+177A  3C 3B                             CMP     AL,59           ; IS IT IN TABLE?
+177C  72 6A                             JB      K56             ; YES, GO TRANSLATE CHAR
+                                                                ; CTL-TABLE-TRANSLATE
+177E  BB 14A6 R                         MOV     BX,OFFSET K9    ; CTL TABLE SCAN
+1781  E9 1863 R                         JMP     K63             ; TRANSLATE_SCAN
+                                ;-------  NOT IN CONTROL SHIFT
+1784  3C 47                     K44:    CMP     AL,71           ; TEST FOR KEYPAD REGION
+1786  73 1F                             JAE     K48             ; HANDLE KEYPAD REGION
+1788  F6 06 0017 R 03                   TEST    KB_FLAG,LEFT_SHIFT+RIGHT_SHIFT
+178D  74 4E                             JZ      K54             ; TEST FOR SHIFT STATE
+                                ;-------  UPPER CASE, HANDLE SPECIAL CASES
+178F  3C 0F                             CMP     AL,15           ; BACK TAB KEY
+1791  75 05                             JNE     K46             ; NOT-BACK-TAB
+1793  B8 0F00                           MOV     AX,15*256       ; SET PSEUDO SCAN CODE
+1796  EB 54                             JMP     SHORT K57       ; BUFFER_FILL
+                                                                ; NOT-PRINT-SCREEN
+1798  3C 3B                     K46:    CMP     AL,59           ; TEST FOR FUNCTION KEYS
+179A  72 06                             JB      K47             ; NOT-UPPER-FUNCTION
+179C  BB 1533 R                         MOV     BX,OFFSET K12   ; UPPER CASE PSEUDO SCAN CODES
+179F  E9 1863 R                         JMP     K63             ; TRANSLATE_SCAN
+                                                                ; NOT-UPPER-FUNCTION
+17A2  BB 14F9 R                 K47:    MOV     BX,OFFSET K11   ; POINT TO UPPER CASE TABLE
+17A5  EB 41                             JMP     SHORT K56       ; OK, TRANSLATE THE CHAR
+                                ;-------  KEYPAD KEYS, MUST TEST NUM LOCK FOR DETERMINATION
+17A7  F6 06 0017 R 20           K48:    TEST    KB_FLAG,NUM_STATE ; ARE WE IN NUM_LOCK?
+17AC  75 21                             JNZ     K52             ; TEST FOR SURE
+17AE  F6 06 0017 R 03                   TEST    KB_FLAG,LEFT_SHIFT+RIGHT_SHIFT ; ARE WE IN SHIFT
+                                                                ; STATE
+17B3  75 21                             JNZ     K53             ; IF SHIFTED, REALLY NUM STATE
+                                ;-------  BASE CASE FOR KEYPAD
+17B5  3C 4A                     K49:    CMP     AL,74           ; BASE-CASE
+17B7  74 0C                             JE      K50             ; SPECIAL CASE FOR A COUPLE OF KEYS
+17B9  3C 4E                             CMP     AL,78           ; MINUS
+17BB  74 0D                             JE      K51
+17BD  2C 47                             SUB     AL,71           ; CONVERT ORIGIN
+17BF  BB 1554 R                         MOV     BX,OFFSET K15   ; BASE CASE TABLE
+17C2  E9 1865 R                         JMP     K64             ; CONVERT TO PSEUDO SCAN
+17C5  B8 4A2D                   K50:    MOV     AX,74*256+'-'   ; MINUS
+17C8  EB 22                             JMP     SHORT K57       ; BUFFER_FILL
+17CA  B8 4E2B                   K51:    MOV     AX,78*256+'+'   ; PLUS
+17CD  EB 1D                             JMP     SHORT K57       ; BUFFER_FILL
+                                ;-------  MIGHT BE NUM LOCK, TEST SHIFT STATUS
+17CF  F6 06 0017 R 03           K52:    TEST    KB_FLAG,LEFT_SHIFT+RIGHT_SHIFT ; ALMOST-NUM-STATE
+17D4  75 0F                             JNZ     K49             ; SHIFTED TEMP OUT OF NUM STATE
+                                                                ; REALLY_NUM_STATE
+17D6  2C 46                     K53:    SUB     AL,70           ; CONVERT ORIGIN
+17D8  BB 1547 R                         MOV     BX,OFFSET K14   ; NUM STATE TABLE
+17DB  EB 0B                             JMP     SHORT K56       ; TRANSLATE_CHAR
+                                ;-------  PLAIN OLD LOWER CASE
+17DD  3C 3B                     K54:    CMP     AL,59           ; NOT-SHIFT
+17DF  72 04                             JB      K55             ; TEST FOR FUNCTION KEYS
+17E1  32 C0                             XOR     AL,AL           ; NOT-LOWER-FUNCTION
+17E3  EB 07                             JMP     SHORT K57       ; SCAN CODE IN AH ALREADY
+                                                                ; BUFFER_FILL
+17E5  BB 14BF R                 K55:    MOV     BX,OFFSET K10   ; NOT-LOWER-FUNCTION
+                                ;-------  TRANSLATE THE CHARACTER
+17E8  FE C8                     K56:    DEC     AL              ; TRANSLATE-CHAR
+17EA  2E: D7                            XLAT    CS:K11          ; CONVERT ORIGIN
+                                                                ; CONVERT THE SCAN CODE TO ASCII
+                                ;-------  PUT CHARACTER INTO BUFFER
+17EC  3C FF                     K57:    CMP     AL,-1           ; BUFFER-FILL
+17EE  74 1F                             JE      K59             ; IS THIS AN IGNORE CHAR?
+17F0  80 FC FF                          CMP     AH,-1           ; YES, DO NOTHING WITH IT
+17F3  74 1A                             JE      K59             ; LOOK FOR -1 PSEUDO SCAN
+                                                                ; NEAR_INTERRUPT_RETURN
+                                ;-------  HANDLE THE CAPS LOCK PROBLEM
+17F5  F6 06 0017 R 40           K58:    TEST    KB_FLAG,CAPS_STATE ; BUFFER-FILL-NOTEST
+17FA  74 20                             JZ      K61             ; ARE WE IN CAPS LOCK STATE?
+                                                                ; SKIP IF NOT
+17FC  F6 06 0017 R 03                   TEST    KB_FLAG,LEFT_SHIFT+RIGHT_SHIFT ; IN CAPS LOCK STATE
+                                                                ; TEST FOR SHIFT
+1801  74 0F                             JZ      K60             ; IF NOT SHIFT, CONVERT LOWER TO
+                                                                ; UPPER
+                                ;-------  CONVERT ANY UPPER CASE TO LOWER CASE
+1803  3C 41                     K59:    CMP     AL,'A'          ; FIND OUT IF ALPHABETIC
+1805  72 15                             JB      K61             ; NOT_CAPS_STATE
+1807  3C 5A                             CMP     AL,'Z'
+1809  77 11                             JA      K61             ; NOT_CAPS_STATE
+180B  04 20                             ADD     AL,'a'-'A'      ; CONVERT TO LOWER CASE
+180D  EB 0D                             JMP     SHORT K61       ; NOT_CAPS_STATE
+                                                                ; NEAR-INTERRUPT-RETURN
+180F  E9 164A R                         JMP     K26             ; INTERRUPT_RETURN
+                                ;-------  CONVERT ANY LOWER CASE TO UPPER CASE
+1812  3C 61                     K60:    CMP     AL,'a'          ; LOWER-TO-UPPER
+1814  72 06                             JB      K61             ; FIND OUT IF ALPHABETIC
+1816  3C 7A                             CMP     AL,'z'
+1818  77 02                             JA      K61             ; NOT_CAPS_STATE
+181A  2C 20                             SUB     AL,'a'-'A'      ; CONVERT TO UPPER CASE
+; --------------------------------------------------------------------------------------------------
+; A-49
+; --------------------------------------------------------------------------------------------------
+181C                            K61:                            ; NOT-CAPS-STATE
+181C  8B 1E 001C R                      MOV     BX,BUFFER_TAIL  ; GET THE END POINTER TO THE BUFFER
+1820  8B F3                             MOV     SI,BX           ; SAVE THE VALUE
+1822  E8 144F R                         CALL    K4              ; ADVANCE THE TAIL
+1825  3B 1E 001A R                      CMP     BX,BUFFER_HEAD  ; HAS THE BUFFER WRAPPED AROUND?
+1829  75 1D                             JNE     K61_1           ; BUFFER_FULL_BEEP
+182B  53                                PUSH    BX              ; SAVE BUFFER_TAIL
+182C  BB 0080                           MOV     BX,080H         ; DURATION OF ERROR BEEP
+182F  B9 0048                           MOV     CX,48H          ; FREQUENCY OF ERROR BEEP HALF TONE
+1832  E8 E035 R                         CALL    KB_NOISE        ; OUTPUT NOISE
+1835  80 26 0017 R F0                   AND     KB_FLAG,0F0H    ; CLEAR ALT,CTRL,LEFT AND RIGHT
+                                                                ; SHIFTS
+183A  80 26 0018 R 0F                   AND     KB_FLAG_1,0FH   ; CLEAR POTENTIAL BREAK OF INS,CAPS
+                                                                ; ,NUM AND SCROLL SHIFT
+183F  80 26 0088 R 1F                   AND     KB_FLAG_2,1FH   ; CLEAR FUNCTION STATES
+1844  5B                                POP     BX              ; RETRIEVE BUFFER TAIL
+1845  E9 164A R                         JMP     K26             ; RETURN FROM INTERRUPT
+1848  F6 06 0018 R 04           K61_1:  TEST    KB_FLAG_1,CLICK_ON ; IS AUDIO FEEDBACK ENABLED?
+184D  74 0B                             JZ      K61_2           ; NO, JUST PUT IN BUFFER
+184F  53                                PUSH    BX              ; SAVE BUFFER_TAIL VALUE
+1850  BB 0001                           MOV     BX,1H           ; DURATION OF CLICK
+1853  B9 0010                           MOV     CX,10H          ; FREQUENCY OF CLICK
+1856  E8 E035 R                         CALL    KB_NOISE        ; OUTPUT AUDIO FEEDBACK OF KEY
+                                                                ; STROKE
+1859  5B                                POP     BX              ; RETRIEVE BUFFER_TAIL VALUE
+185A  89 04                     K61_2:  MOV     [SI],AX         ; STORE THE VALUE
+185C  89 1E 001C R                      MOV     BUFFER_TAIL,BX  ; MOVE THE POINTER UP
+1860  E9 164A R                         JMP     K26             ; INTERRUPT_RETURN
+                                ;------ TRANSLATE SCAN FOR PSEUDO SCAN CODES
+1863                            K63:                            ; TRANSLATE-SCAN
+1863  2C 3B                             SUB     AL,59           ; CONVERT ORIGIN TO FUNCTION KEYS                                                                
+1865                            K64:                            ; TRANSLATE-SCAN-ORG0
+1865  2E: D7                            XLAT    CS:K9           ; CTL TABLE SCAN
+1867  8A E0                             MOV     AH,AL           ; PUT VALUE INTO AH
+1869  32 C0                             XOR     AL,AL           ; ZERO ASCII CODE
+186B  E9 17EC R                         JMP     K57             ; PUT IT INTO THE BUFFER
+186E                            KB_INT  ENDP
+                                ;---------------------------------------------------------------
+                                ;GET_POS
+                                ;       THIS ROUTINE WILL SHIFT THE VALUE STORED IN THE HIGH NIBBLE
+                                ;       OF THE VARIABLE VAR_DELAY TO THE LOW NIBBLE.
+                                ;INPUT
+                                ;       NONE.   IT IS ASSUMED THAT DS POINTS AT THE BIOS DATA AREA
+                                ;OUTPUT
+                                ;       AL CONTAINS THE SHIFTED VALUE.
+                                ;---------------------------------------------------------------
+186E                            GET_POS PROC    NEAR
+186E  51                                PUSH    CX              ; SAVE SHIFT REGISTER
+186F  A0 0086 R                         MOV     AL,BYTE PTR VAR_DELAY ; GET STORAGE LOCATION
+1872  24 F0                             AND     AL,0F0H         ; MASK OFF LOW NIBBLE
+1874  B1 04                             MOV     CL,4            ; SHIFT OF FOUR BIT POSITIONS
+1876  D2 F8                             SAR     AL,CL           ; SHIFT THE VALUE SIGN EXTENDED
+1878  59                                POP     CX              ; RESTORE THE VALUE
+1879  C3                                RET
+187A                            GET_POS ENDP
+                                ;---------------------------------------------------------------
+                                ;PUT_POS
+                                ;       THIS ROUTINE WILL TAKE THE VALUE IN LOW ORDER NIBBLE IN
+                                ;       AL AND STORE IT IN THE HIGH ORDER OF VAR_DELAY
+                                ;INPUT
+                                ;       AL CONTAINS THE VALUE FOR STORAGE
+                                ;OUTPUT
+                                ;       NONE.
+                                ;---------------------------------------------------------------
+187A                            PUT_POS PROC    NEAR
+187A  51                                PUSH    CX              ; SAVE REGISTER
+187B  B1 04                             MOV     CL,4            ; SHIFT COUNT
+187D  D2 E0                             SHL     AL,CL           ; PUT IN HIGH ORDER NIBBLE
+187F  8A 0E 0086 R                      MOV     CL,BYTE PTR VAR_DELAY ; GET DATA BYTE
+1883  80 E1 0F                          AND     CL,0FH          ; CLEAR OLD VALUE IN HIGH NIBBLE
+1886  0A C1                             OR      AL,CL           ; COMBINE HIGH AND LOW NIBBLES
+1888  A2 0086 R                         MOV     BYTE PTR VAR_DELAY,AL ; PUT IN POSITION
+188B  59                                POP     CX              ; RESTORE REGISTER
+188C  C3                                RET
+188D                            PUT_POS ENDP
+                                ;---------------------------------------------------------------
+                                ; MANUFACTURING ACTIVITY SIGNAL ROUTINE - INVOKED THROUGH THE TIMER
+                                ; TICK ROUTINE DURING MANUFACTURING ACTIVITIES . (ACCESSED THROUGH
+                                ; INT 1CH)
+                                ;---------------------------------------------------------------
+188D                            MFG_TICK        PROC    FAR
+188D  50                                PUSH    AX
+188E  2B C0                             SUB     AX,AX           ; SEND A 00 TO PORT 13 AS A
+                                                                ; ACTIVITY SIGNAL
+1890  E6 13                             OUT     13H,AL
+1892  E4 61                             IN      AL,PORT_B       ; FLIP SPEAKER DATA TO OPPOSITE
+                                                                ; SENSE
+1894  8A E0                             MOV     AH,AL           ; SAVE ORIG SETTING
+1896  80 E4 9D                          AND     AH,10011101B    ; MAKE SURE MUX IS -> RIGHT AND
+                                                                ; ISOLATE SPEAKER BIT
+1899  F6 D0                             NOT     AL              ; FLIP ALL BITS
+189B  24 02                             AND     AL,00000010B    ; ISOLATE SPEAKER DATA BIT (NOW IN
+                                                                ; OPPOSITE SENSE)
+189D  0A C4                             OR      AL,AH           ; COMBINE WITH ORIG. DATA FROM
+                                                                ; PORT B
+189F  0C 10                             OR      AL,00010000B    ; AND DISABLE INTERNAL SPEAKER
+18A1  E6 61                             OUT     PORT_B,AL
+18A3  B0 20                             MOV     AL,20H          ; EOI TO INTR. CHIP
+18A5  E6 20                             OUT     20H,AL
+18A7  58                                POP     AX
+18A8  CF                                IRET
+18A9                            MFG_TICK        ENDP
+; --------------------------------------------------------------------------------------------------
+; A-50
+; --------------------------------------------------------------------------------------------------
+                                ;--------------------------------------------------------------
+                                ;            CONVERT AND PRINT ASCII CODE
+                                ;
+                                ;     AL MUST CONTAIN NUMBER TO BE CONVERTED.
+                                ;                  AX AND BX DESTROYED.
+                                ;--------------------------------------------------------------
+
+18A9                            XPC_BYTE        PROC    NEAR
+18A9  50                                PUSH    AX              ; SAVE FOR LOW NIBBLE DISPLAY
+18AA  B1 04                             MOV     CL,4            ; SHIFT COUNT
+18AC  D2 E8                             SHR     AL,CL           ; NIBBLE SWAP
+18AE  E8 18B4 R                         CALL    XLAT_PR         ; DO THE HIGH NIBBLE DISPLAY
+18B1  58                                POP     AX              ; RECOVER THE NIBBLE
+18B2  24 0F                             AND     AL,0FH          ; ISOLATE TO LOW NIBBLE
+                                ; FALL INTO LOW NIBBLE CONVERSION
+18B4                            XLAT_PR PROC    NEAR           ; CONVERT 00-0F TO ASCII CHARACTER
+18B4  04 90                             ADD     AL,090H         ; ADD FIRST CONVERSION FACTOR
+18B6  27                                DAA                     ; ADJUST FOR NUMERIC AND ALPHA
+                                                                ; RANGE
+18B7  14 40                             ADC     AL,040H         ; ADD CONVERSION AND ADJUST LOW
+                                                                ; NIBBLE
+18B9  27                                DAA                     ; ADJUST HIGH NIBBLE TO ASCII RANGE
+18BA                            PRT_HEX PROC    NEAR
+18BA  53                                PUSH    BX
+18BB  B4 0E                             MOV     AH,14           ; DISPLAY CHARACTER IN AL
+18BD  B7 00                             MOV     BH,0
+18BF  CD 10                             INT     10H             ; CALL VIDEO_IO
+18C1  5B                                POP     BX
+18C2  C3                                RET
+18C3                            PRT_HEX ENDP
+                                XLAT_PR ENDP
+18C3                            XPC_BYTE
+18C3                                    ENDP
+                                ;CONTROL IS PASSED HERE WHEN THERE ARE NO PARALLEL PRINTERS
+                                ;ATTACHED. CX HAS EQUIPMENT FLAG,DS POINTS AT DATA (40H)
+                                ;DETERMINE WHICH RS232 CARD (0,1) TO USE
+18C3                            REPRINT PROC    NEAR
+18C3  2B D2                     B1_A:   SUB     DX,DX           ;ASSUME TO USE CARD 0
+18C5  F6 C5 04                          TEST    CH,00000100B    ;UNLESS THERE ARE TWO CARDS
+18C8  74 01                             JE      B10_1           ;IN WHICH CASE,
+18CA  42                                INC     DX              ;USE CARD 1
+                                ;DETERMINE WHICH FUNCTION IS BEING CALLED
+18CB  0A E4                     B10_1:  OR      AH,AH           ;TEST FOR AH = 0
+18CD  74 41                             JZ      B12             ;GO PRINT CHAR
+18CF  FE CC                             DEC     AH              ;TEST FOR AH = 1
+18D1  74 10                             JZ      B11             ;GO DO INIT
+18D3  FE CC                             DEC     AH              ;TEST FOR AH = 2
+18D5  75 16                             JNZ     SHORT B10_3     ;IF NOT VALID, RETURN
+                                ;ELSE...
+                                ;GET STATUS FROM RS232 PORT
+18D7  50                                PUSH    AX              ;SAVE AL
+18D8  B4 03                             MOV     AH,03H          ;USE THE GET COMMO PORT
+18DA  CD 14                             INT     014H            ;STATUS FUNCTION OF INT14
+18DC  E8 1925 R                         CALL    FAKE            ;FAKE WILL MAP ERROR BITS FROM
+                                                                ;RS232 TO CORRESPONDING ONES
+                                                                ;FOR THE PRINTER
+18DF  58                                POP     AX              ;RESTORE AL
+18E0  0A F6                             OR      DH,DH           ;CHECK IF ANY FLAGS WERE SET
+18E2  74 07                             JZ      B10_2
+18E4  8A E6                             MOV     AH,DH           ;MOVE FAKED ERROR CONDITION TO AH
+18E6  80 E4 FE                          AND     AH,0FEH
+18E9  EB 02                             JMP     SHORT B10_3     ;THEN RETURN
+18EB  B4 90                     B10_2:  MOV     AH,090H         ;MOVE IN STATUS FOR 'CORRECT'
+                                                                ; RETURN
+18ED  E9 F00D R                 B10_3:  JMP     B1
+                                ;INIT COMMO PORT     --- DX HAS WHICH CARD TO INIT.
+                                ;MOVE TIME OUT VALUE FROM PRINTER TO RS232 TIME OUT VALUE
+18F0  8B F2                     B11:    MOV     SI,DX           ;SI GETS OFFSET INTO THE TABLE
+18F2  A0 0078 R                         MOV     AL,PRINT_TIM_OUT
+18F5  04 0A                             ADD     AL,0AH          ; INCREASE DELAY
+18F7  88 84 007C R                      MOV     RS232_TIM_OUT[SI],AL
+18FB  50                                PUSH    AX              ;SAVE AL
+18FC  B0 87                             MOV     AL,087H         ;SET INIT FOR: 1200 BAUD
+                                                                ;              8 BIT WRD LNG
+                                                                ;              NO PARITY
+                                                                ;              2 STOP BITS
+18FE  2A E4                             SUB     AH,AH           ;AH=0 IS COMMO INIT FUNCTION
+1900  CD 14                             INT     014H            ;DO INIT
+1902  E8 1925 R                         CALL    FAKE            ;FAKE WILL MAP ERROR BITS FROM
+                                                                ;RS232 TO CORRESPONDING ONES
+                                                                ;FOR THE PRINTER
+1905  58                                POP     AX              ;RESTORE AL
+1906  8A E6                             MOV     AH,DH           ;IF DH IS RETURNED ZERO, MEANING
+1908  0A E4                             OR      AH,AH           ;NO ERRORS RETURN IT FOR THAT'S THE
+                                                                ;'CORRECT' RETURN FROM AN ERROR
+                                                                ; FREE INIT
+190A  74 E1                             JE      B10_3
+190C  B4 A8                             MOV     AH,0A8H
+190E  EB DD                             JMP     SHORT B10_3     ;THEN RETURN
+; --------------------------------------------------------------------------------------------------
+; A-51
+; --------------------------------------------------------------------------------------------------
+                                ;PRINT CHAR TO SERIAL PORT
+                                ;DX = RS232 CARD TO BE USED: AL HAS CHAR TO BE PRINTED
+1910  50                        B12:    PUSH    AX              ;SAVE AL
+1911  B4 01                             MOV     AH,01           ;1 IS SEND A CHAR DOWN COMMO LINE
+1913  CD 14                             INT     014H            ;SEND THE CHAR
+1915  E8 1925 R                         CALL    FAKE            ;FAKE WILL MAP ERROR BITS FROM
+                                                                 ;RS232 TO CORRESPONDING ONES
+                                                                 ;FOR THE PRINTER
+ 
+1918  58                                POP     AX              ;RESTORE AL
+1919  0A F6                             OR      DH,DH           ;SEE IF NO ERRORS WERE RETURNED
+191B  74 04                             JZ      B12_1
+191D  8A E6                             MOV     AH,DH           ;IF THERE WERE ERRORS, RETURN THEM
+191F  EB CC                             JMP     SHORT B10_3     ;AND RETURN
+1921  B4 10                     B12_1:  MOV     AH,010H         ;PUT 'CORRECT' RETURN STATUS IN AH
+1923  EB C8                             JMP     SHORT B10_3     ;AND RETURN
+1925                                    REPRINT ENDP
+                                ;THIS PROC MAPS THE ERRORS RETURNED FROM A BIOS INT14 CALL
+                                ;TO THOSE 'LIKE THAT' OF AN INT17 CALL
+                                ;BREAK,FRAMING,PARITY,OVERRUN ERRORS ARE LOGGED AS I/O
+                                ;ERRORS AND A TIME OUT IS MOVED TO THE APPROPRIATE BIT
+1925                            FAKE    PROC    NEAR
+1925  32 F6                             XOR     DH,DH           ;CLEAR FAKED STATUS FLAGS
+1927  F6 C4 1E                          TEST    AH,011110B      ;CHECK FOR BREAK,FRAMING,PARITY
+                                                                 ;OVERRUN
+192A  74 03                             JZ      B13_1           ;ERRORS. IF NOT THEN CHECK FOR
+                                                                 ;TIME OUT.
+192C  B6 08                             MOV     DH,01000B       ;SET BIT 3 TO INDICATE 'I/O ERROR'
+192E  C3                                RET                     ;AND RETURN
+192F  F6 C4 80                  B13_1:  TEST    AH,080H         ;TEST FOR TIME OUT ERROR RETURNED
+1932  74 02                             JZ      B13_2           ;IF NOT TIME OUT, RETURN
+1934  B6 09                             MOV     DH,09H          ;IF TIME OUT
+1936  C3                        B13_2:  RET
+1937                            FAKE    ENDP
+                                ;---------------------------------------------------------------
+                                ;NEW_INT9
+                                ;       THIS ROUTINE IS THE INTERRUPT 9 HANDLER WHEN THE MACHINE IS
+                                ;       FIRST POWERED ON AND CASSETTE BASIC IS GIVEN CONTROL.  IT
+                                ;       HANDLES THE FIRST KEYSTROKES ENTERED FROM THE KEYBOARD AND
+                                ;       PERFORMS "SPECIAL" ACTIONS AS FOLLOWS:
+                                ;               IF ESC IS THE FIRST KEY ENTERED MINI-WELCOME IS
+                                ;                       EXECUTED
+                                ;               IF CTRL-ESC IS THE FIRST SEQUENCE "LOAD CAS1:,R" IS
+                                ;                       EXECUTED GIVING THE USER THE ABILITY TO BOOT
+                                ;                       FROM CASSETTE
+                                ;       AFTER THESE KEYSTROKES OR AFTER ANY OTHER KEYSTROKES THE
+                                ;       INTERRUPT 9 VECTOR IS CHANGED TO POINT AT THE REAL
+                                ;       INTERRUPT 9 ROUTINE.
+                                ;---------------------------------------------------------------
+1937                            NEW_INT_9       PROC    FAR
+1937  3C 01                             CMP     AL,1            ;IS THIS AN ESCAPE KEY?
+1939  74 10                             JE      ESC_KEY         ;JUMP IF AL=ESCAPE KEY
+193B  3C 1D                             CMP     AL,29           ;ELSE, IS THIS A CONTROL KEY?
+193D  74 06                             JE      CTRL_KEY        ;JUMP IF AL=CONTROL KEY
+193F  E8 E01B R                         CALL    REAL_VECTOR_SETUP ;OTHERWISE, INITIALIZE REAL
+                                                                 ;INT 9 VECTOR
+1942  CD 09                             INT     9H              ;PASS THE SCAN CODE IN AL
+1944  CF                                IRET                    ;RETURN TO INTERRUPT 48H
+1945                            CTRL_KEY:
+1945  80 0E 0017 R 04                   OR      KB_FLAG,04H     ;TURN ON CTRL SHIFT IN KB_FLAG
+194A  CF                                IRET                    ;RETURN TO INTERRUPT
+194B                            ESC_KEY:
+194B  F6 06 0017 R 04                   TEST    KB_FLAG,04H     ;HAS CONTROL SHIFT OCCURED?
+1950  74 29                             JE      ESC_ONLY        ;NO.  ESCAPE ONLY
+                                ;CONTROL ESCAPE HAS OCCURED, PUT MESSAGE IN BUFFER FOR CASSETTE
+                                ;LOAD
+1952  C6 06 0017 R 00                   MOV     KB_FLAG,0       ;ZERO OUT CONTROL STATE
+1957  1E                                PUSH    DS
+1958  07                                POP     ES              ;INITIALIZE ES FOR BIOS DATA
+1959  1E                                PUSH    DS              ;SAVE OLD DS
+195A  0E                                PUSH    CS              ;POINT DS AT CODE SEGMENT
+195B  1F                                POP     DS
+195C  BE 1983 R                         MOV     SI,OFFSET CAS_LOAD ;GET MESSAGE
+195F  BF 001E R                         MOV     DI,OFFSET KB_BUFFER ;POINT AT KEYBOARD BUFFER
+1962  B9 000F                           MOV     CX,CAS_LENGTH   ;LENGTH OF CASSETTE MESSAGE
+1966  AC                        T_LOOP: LODSB                   ;GET ASCII CHARACTER FROM MESSAGE
+1967  AB                                STOSW                   ;PUT IN KEYBOARD BUFFER
+1968  E2 FC                             LOOP    T_LOOP
+196A  1F                                POP     DS              ;RETRIEVE BIOS DATA SEGMENT
+                                ;------- INITIALIZE QUEUE SO MESSAGE WILL BE REMOVED FROM BUFFER
+196B  C7 06 001A R 001E R               MOV     BUFFER_HEAD,OFFSET KB_BUFFER
+1971  C7 06 001C R 003C R               MOV     BUFFER_TAIL,OFFSET KB_BUFFER+(CAS_LENGTH*2)
+                                ;---------------------------------------------------------------
+                                ;***NOTE***
+                                ;       IT IS ASSUMED THAT THE LENGTH OF THE CASSETTE MESSAGE IS
+                                ;       LESS THAN OR EQUAL TO THE LENGTH OF THE BUFFER.  IF THIS IS
+                                ;       NOT THE CASE THE BUFFER WILL EVENTUALLY CONSUME MEMORY.
+                                ;---------------------------------------------------------------
+1977  E8 E01B R                         CALL    REAL_VECTOR_SETUP
+197A  CF                                IRET
+197B                            ESC_ONLY:
+197B  E8 E01B R                         CALL    REAL_VECTOR_SETUP
+197E  B9 2000                           MOV     CX,MINI
+1981  FF E1                             JMP     CX              ;ENTER THE WORLD OF KEYBOARD CAPER
+                                ;MESSAGE FOR OUTPUT WHEN CONTROL-ESCAPE IS ENTERED AS FIRST
+                                ;KEY SEQUENCE
+1983                            CAS_LOAD        LABEL   BYTE
+1983  4C 4F 41 44 20 22                 DB      'LOAD "CAS1:",R'
+      43 41 53 31 3A 22 
+      2C 52 
+1991  0D                                DB      13
+= 000F                          CAS_LENGTH     EQU     $ - CAS_LOAD
+1992                            NEW_INT_9       ENDP
+; --------------------------------------------------------------------------------------------------
+; A-52
+; --------------------------------------------------------------------------------------------------
+                                ;----------------------------------------
+                                ; WRITE_TTY
+                                ; THIS INTERFACE PROVIDES A TELETYPE LIKE INTERFACE TO THE
+                                ; VIDEO CARD.  THE INPUT CHARACTER IS WRITTEN TO THE CURRENT
+                                ; CURSOR POSITION, AND THE CURSOR IS MOVED TO THE NEXT POSITION.
+                                ; IF THE CURSOR LEAVES THE LAST COLUMN OF THE FIELD, THE COLUMN
+                                ; IS SET TO ZERO, AND THE ROW VALUE IS INCREMENTED.  IF THE ROW
+                                ; VALUE LEAVES THE FIELD, THE CURSOR IS PLACED ON THE LAST
+                                ; ROW, FIRST COLUMN, AND THE ENTIRE SCREEN IS SCROLLED UP ONE
+                                ; LINE. WHEN THE SCREEN IS SCROLLED UP, THE ATTRIBUTE FOR FILLING
+                                ; THE NEWLY BLANKED LINE IS READ FROM THE CURSOR POSITION ON THE
+                                ; PREVIOUS LINE BEFORE THE SCROLL, IN CHARACTER MODE.  IN
+                                ; GRAPHICS MODE, THE 0 COLOR IS USED.
+                                ;
+                                ; ENTRY --
+                                ;    (AH) = CURRENT CRT MODE
+                                ;    (AL) = CHARACTER TO BE WRITTEN
+                                ;           NOTE THAT BACK SPACE, CAR RET, BELL AND LINE FEED ARE
+                                ;           HANDLED AS COMMANDS RATHER THAN AS DISPLAYABLE GRAPHICS
+                                ;    (BL) = FOREGROUND COLOR FOR CHAR WRITE IF CURRENTLY IN A
+                                ;           GRAPHICS MODE
+                                ;
+                                ; EXIT --
+                                ;    ALL REGISTERS SAVED
+                                ;----------------------------------------
+
+                                ASSUME  CS:CODE,DS:DATA
+1992                            WRITE_TTY       PROC    NEAR
+1992  50                                PUSH    AX              ; SAVE REGISTERS
+1993  50                                PUSH    AX              ; SAVE CHAR TO WRITE
+1994  8A 3E 0062 R                      MOV     BH,ACTIVE_PAGE  ; GET CURRENT PAGE SETTING
+1998  53                                PUSH    BX              ; SAVE IT
+1999  8A DF                             MOV     BL,BH           ; IN BL
+199B  32 FF                             XOR     BH,BH
+199D  D1 E3                             SAL     BX,1            ; CONVERT TO WORD OFFSET
+199F  8B 97 0050 R                      MOV     DX,[BX+OFFSET CURSOR_POSN] ; GET CURSOR POSITION
+19A3  5B                                POP     BX              ; RECOVER CURRENT PAGE
+19A4  58                                POP     AX              ; RECOVER CHAR
+                                ;------ DX NOW HAS THE CURRENT CURSOR POSITION
+19A5  3C 08                             CMP     AL,8            ; IS IT A BACKSPACE?
+19A7  74 50                             JE      U8              ; BACK_SPACE
+19A9  3C 0D                             CMP     AL,0DH          ; IS IT A CARRIAGE RETURN?
+19AB  74 54                             JE      U9              ; CAR_RET
+19AD  3C 0A                             CMP     AL,0AH          ; IS IT A LINE FEED
+19AF  74 15                             JE      U10             ; LINE_FEED
+19B1  3C 07                             CMP     AL,07H          ; IS IT A BELL
+19B3  74 50                             JE      U11             ; BELL
+                                ;------ WRITE THE CHAR TO THE SCREEN
+19B5  B4 0A                             MOV     AH,10           ; WRITE CHAR ONLY
+19B7  B9 0001                           MOV     CX,1            ; ONLY ONE CHAR
+19BA  CD 10                             INT     10H             ; WRITE THE CHAR
+                                ;------ POSITION THE CURSOR FOR NEXT CHAR
+19BC  FE C2                             INC     DL
+19BE  3A 16 004A R                      CMP     DL,BYTE PTR CRT_COLS ; TEST FOR COLUMN OVERFLOW
+19C2  75 31                             JNZ     U7              ; SET_CURSOR
+19C4  32 D2                             XOR     DL,DL           ; COLUMN FOR CURSOR
+
+                                ;------ LINE FEED
+19C6                            U10:
+19C6  80 FE 18                          CMP     DH,24
+19C9  75 28                             JNZ     U6              ; SET_CURSOR_INC
+
+                                ;------ SCROLL REQUIRED
+19CB  B4 02                             MOV     AH,2            ; SET THE CURSOR
+19CD  CD 10                             INT     10H
+
+                                ;------ DETERMINE VALUE TO FILL WITH DURING SCROLL
+19CF  A0 0049 R                         MOV     AL,CRT_MODE     ; GET THE CURRENT MODE
+19D2  3C 04                             CMP     AL,4
+19D4  72 04                             JC      U2              ; READ-CURSOR
+19D6  32 FF                             XOR     BH,BH           ; FILL WITH BACKGROUND
+19D8  EB 06                             JMP     SHORT U3        ; SCROLL-UP
+                                U2:
+19DA  B4 08                             MOV     AH,8
+19DC  CD 10                             INT     10H             ; READ CHAR/ATTR AT CURRENT CURSOR
+19DE  8A FC                             MOV     BH,AH           ; STORE IN BH
+                                U3:
+19E0  B8 0601                           MOV     AX,601H         ; SCROLL ONE LINE
+19E3  2B C9                             SUB     CX,CX           ; UPPER LEFT CORNER
+19E5  B6 18                             MOV     DH,24           ; LOWER RIGHT ROW
+19E7  8A 16 004A R                      MOV     DL,BYTE PTR CRT_COLS ; LOWER RIGHT COLUMN
+19EB  FE CA                             DEC     DL
+                                U4:
+19ED  CD 10                             INT     10H             ; SCROLL UP THE SCREEN
+                                U5:
+19EF  58                                POP     AX              ; RESTORE THE CHARACTER
+19F0  E9 0F70 R                         JMP     VIDEO_RETURN    ; RETURN TO CALLER
+                                U6:
+19F3  FE C6                             INC     DH              ; NEXT ROW
+                                U7:
+19F5  B4 02                             MOV     AH,2            ; ESTABLISH THE NEW CURSOR
+19F7  EB F4                             JMP     U4
+ 
+                                ;------ BACK SPACE FOUND
+19F9  0A D2                     U8:     OR      DL,DL           ; ALREADY AT END OF LINE
+19FB  74 F8                             JE      U7              ; SET_CURSOR
+19FD  FE CA                             DEC     DL              ; NO -- JUST MOVE IT BACK
+19FF  EB F4                             JMP     U7              ; SET_CURSOR
+ 
+                                ;------ CARRIAGE RETURN FOUND
+1A01  32 D2                     U9:     XOR     DL,DL           ; MOVE TO FIRST COLUMN
+1A03  EB F0                             JMP     U7              ; SET_CURSOR
+ 
+                                ;------ BELL FOUND
+1A05  B3 02                     U11:    MOV     BL,2            ; SET UP COUNT FOR BEEP
+1A07  E8 FF31 R                         CALL    BEEP            ; SOUND THE POD BELL
+1A0A  EB E3                             JMP     U5              ; TTY_RETURN
+1A0C                            WRITE_TTY       ENDP
+; --------------------------------------------------------------------------------------------------
+; A-53
+; --------------------------------------------------------------------------------------------------
+                                ;-----------------------------------------------------------
+                                ; THIS PROCEDURE WILL ISSUE SHORT TONES TO INDICATE FAILURES
+                                ; THAT 1: OCCUR BEFORE THE CRT IS STARTED, 2: TO CALL THE
+                                ; OPERATORS ATTENTION TO AN ERROR AT THE END OF POST, OR
+                                ; 3: TO SIGNAL THE SUCCESSFUL COMPLETION OF POST
+                                ; ENTRY PARAMETERS:
+                                ;   DL = NUMBER OF APPROX. 1/2 SEC TONES TO SOUND
+                                ;-----------------------------------------------------------
+1A0C                            ERR_BEEP        PROC    NEAR
+1A0C  9C                                PUSHF                   ; SAVE FLAGS
+1A0D  53                                PUSH    BX
+1A0E  FA                                CLI                     ; DISABLE SYSTEM INTERRUPTS
+                                 ; SHORT_BEEP:
+1A0F  B3 01                     G3:     MOV     BL,1            ; COUNTER FOR A SHORT BEEP
+1A11  E8 FF31 R                         CALL    BEEP            ; DO THE SOUND
+1A14  E2 FE                     G4:     LOOP    G4              ; DELAY BETWEEN BEEPS
+1A16  FE CA                             DEC     DL              ; DONE WITH SHORTS
+1A18  75 F5                             JNZ     G3              ; DO SOME MORE
+1A1A  E2 FE                     G5:     LOOP    G5              ; LONG DELAY BEFORE RETURN
+1A1C  E2 FE                     G6:     LOOP    G6
+1A1E  5B                                POP     BX              ; RESTORE ORIG CONTENTS OF BX
+1A1F  9D                                POPF                    ; RESTORE FLAGS TO ORIG SETTINGS
+1A20  C3                                RET                     ; RETURN TO CALLER
+1A21                            ERR_BEEP        ENDP
+                                LIST
+                                ASSUME  CS:CODE,DS:DATA
+E000                                    ORG     0E000H
+E000  31 35 30 34 30 33                 DB      '1504037 COPR. IBM 1981,1983' ; COPYRIGHT NOTICE
+      37 20 43 4F 50 52
+      2E 20 49 42 4D 20
+      31 39 38 31 2C 31
+      39 38 33
+
+                                ;-----------------------------------------------------------
+                                ;REAL_VECTOR_SETUP
+                                ;
+                                ; THIS ROUTINE WILL INITIALIZE THE INTERRUPT 9 VECTOR TO
+                                ; POINT AT THE REAL INTERRUPT ROUTINE.
+                                ;-----------------------------------------------------------
+E01B                            REAL_VECTOR_SETUP PROC  NEAR
+E01B  50                                PUSH    AX              ; SAVE THE SCAN CODE
+E01C  53                                PUSH    BX
+E01D  06                                PUSH    ES
+E01E  33 C0                             XOR     AX,AX           ; INITIALIZE TO POINT AT VECTOR
+                                                                 ; SECTOR(0)
+E020  8E C0                             MOV     ES,AX
+E022  BB 0024                           MOV     BX,9H*4H        ; POINT AT INTERRUPT 9
+E025  26: C7 07 1561 R                  MOV     WORD PTR ES:[BX],OFFSET KB_INT ; MOVE IN OFFSET OF
+                                                                 ; ROUTINE
+E02A  43                                INC     BX              ; ADD 2 TO BX
+E02B  43                                INC     BX
+E02C  0E                                PUSH    CS              ; GET CODE SEGMENT OF BIOS (SEGMENT
+                                                                 ; RELOCATEABLE)
+E02D  58                                POP     AX
+E02E  26: 89 07                         MOV     WORD PTR ES:[BX],AX ; MOVE IN SEGMENT OF ROUTINE
+E031  07                                POP     ES
+E032  5B                                POP     BX
+E033  58                                POP     AX
+E034  C3                                RET
+E035                            REAL_VECTOR_SETUP ENDP
+                                ;-----------------------------------------------------------
+                                ;KB_NOISE
+                                ;
+                                ; THIS ROUTINE IS CALLED WHEN GENERAL BEEPS ARE REQUIRED FROM
+                                ; THE SYSTEM.
+                                ;
+                                ;INPUT
+                                ;       BX=LENGTH OF THE TONE
+                                ;       CX=CONTAINS THE FREQUENCY
+                                ;OUTPUT
+                                ;       ALL REGISTERS ARE MAINTAINED.
+                                ;HINTS
+                                ;       AS CX GETS LARGER THE TONE PRODUCED GETS LOWER IN PITCH.
+                                ;
+                                ;-----------------------------------------------------------
+E035                            KB_NOISE        PROC    NEAR
+E035  FB                                STI
+E036  50                                PUSH    AX
+E037  53                                PUSH    BX
+E038  51                                PUSH    CX
+E039  E4 61                             IN      AL,061H         ; GET CONTROL INFO
+E03B  50                                PUSH    AX              ; SAVE
+E03C                            LOOP01:
+E03C  24 FC                             AND     AL,0FCH         ; TURN OFF TIMER GATE AND SPEAKER
+                                                                 ; DATA
+E03E  E6 61                             OUT     061H,AL         ; OUTPUT TO CONTROL
+E040  51                                PUSH    CX              ; HALF CYCLE TIME FOR TONE
+E041  E2 FE                     LOOP02: LOOP    LOOP02          ; SPEAKER OFF
+E043  0C 02                             OR      AL,2            ; TURN ON SPEAKER BIT
+E045  E6 61                             OUT     061H,AL         ; OUTPUT TO CONTROL
+E047  59                                POP     CX
+E048  51                                PUSH    CX              ; RETRIEVE FREQUENCY
+E049  E2 FE                     LOOP03: LOOP    LOOP03          ; ANOTHER HALF CYCLE
+E04B  4B                                DEC     BX              ; TOTAL TIME COUNT
+E04C  59                                POP     CX              ; RETRIEVE FREQ.
+E04D  75 ED                             JNZ     LOOP01          ; DO ANOTHER CYCLE
+E04F  58                                POP     AX              ; RECOVER CONTROL
+E050  E6 61                             OUT     061H,AL         ; OUTPUT THE CONTROL
+E052  59                                POP     CX
+E053  5B                                POP     BX
+E054  58                                POP     AX
+E055  C3                                RET
+E056                            KB_NOISE        ENDP
+E05B                                    ORG     0E05BH
+E05B  E9 0043 R                         JMP     NEAR PTR RESET
+; --------------------------------------------------------------------------------------------------
+; A-54
+; --------------------------------------------------------------------------------------------------
+                                ; ----------------------------------------------------
+                                ;     CHARACTER GENERATOR GRAPHICS FOR 320X200 AND 640X200
+                                ;     GRAPHICS FOR CHARACTERS 80H THROUGH FFH
+                                ; ----------------------------------------------------
+E05E                            CRT_CHARH       LABEL   BYTE
+E05E  78 CC C0 CC 78 18                 DB      078H, 0CCH, 0C0H, 0CCH, 078H, 018H, 00CH, 078H ; D_80
+      0C 78 
+E066  00 CC 00 CC CC CC                 DB      000H, 0CCH, 000H, 0CCH, 0CCH, 0CCH, 07EH, 000H ; D_81
+      7E 00 
+E06E  1C 00 78 CC FC C0                 DB      01CH, 000H, 078H, 0CCH, 0FCH, 0C0H, 078H, 000H ; D_82
+      78 00 
+E076  7E C3 3C 06 3E 66                 DB      07EH, 0C3H, 03CH, 006H, 03EH, 066H, 03FH, 000H ; D_83
+      3F 00 
+E07E  CC 00 78 0C 7C CC                 DB      0CCH, 000H, 078H, 00CH, 07CH, 0CCH, 07EH, 000H ; D_84
+      7E 00 
+E086  E0 00 78 0C 7C CC                 DB      0E0H, 000H, 078H, 00CH, 07CH, 0CCH, 07EH, 000H ; D_85
+      7E 00 
+E08E  30 30 78 0C 7C CC                 DB      030H, 030H, 078H, 00CH, 07CH, 0CCH, 07EH, 000H ; D_86
+      7E 00 
+E096  00 00 78 C0 C0 78                 DB      000H, 000H, 078H, 0C0H, 0C0H, 078H, 00CH, 038H ; D_87
+      0C 38 
+E09E  7E C3 3C 66 7E 60                 DB      07EH, 0C3H, 03CH, 066H, 07EH, 060H, 03CH, 000H ; D_88
+      3C 00 
+E0A6  CC 00 78 CC FC C0                 DB      0CCH, 000H, 078H, 0CCH, 0FCH, 0C0H, 078H, 000H ; D_89
+      78 00 
+E0AE  E0 00 78 CC FC C0                 DB      0E0H, 000H, 078H, 0CCH, 0FCH, 0C0H, 078H, 000H ; D_8A
+      78 00 
+E0B6  CC 00 70 30 30 30                 DB      0CCH, 000H, 070H, 030H, 030H, 030H, 078H, 000H ; D_8B
+      78 00 
+E0BE  7C C6 38 18 18 18                 DB      07CH, 0C6H, 038H, 018H, 018H, 018H, 03CH, 000H ; D_8C
+      3C 00 
+E0C6  E0 00 70 30 30 30                 DB      0E0H, 000H, 070H, 030H, 030H, 030H, 078H, 000H ; D_8D
+      78 00 
+E0CE  C6 38 6C C6 FE C6                 DB      0C6H, 038H, 06CH, 0C6H, 0FEH, 0C6H, 0C6H, 000H ; D_8E
+      C6 00 
+E0D6  30 30 00 78 CC FC                 DB      030H, 030H, 000H, 078H, 0CCH, 0FCH, 0CCH, 000H ; D_8F
+      CC 00 
+E0DE  1C 00 FC 60 78 60                 DB      01CH, 000H, 0FCH, 060H, 078H, 060H, 0FCH, 000H ; D_90
+      FC 00 
+E0E6  00 00 7F 0C 7F CC                 DB      000H, 000H, 07FH, 00CH, 07FH, 0CCH, 07FH, 000H ; D_91
+      7F 00 
+E0EE  3E 6C CC FE CC CC                 DB      03EH, 06CH, 0CCH, 0FEH, 0CCH, 0CCH, 0CEH, 000H ; D_92
+      CE 00 
+E0F6  78 CC 00 78 CC CC                 DB      078H, 0CCH, 000H, 078H, 0CCH, 0CCH, 078H, 000H ; D_93
+      78 00 
+E0FE  00 CC 00 78 CC CC                 DB      000H, 0CCH, 000H, 078H, 0CCH, 0CCH, 078H, 000H ; D_94
+      78 00 
+E106  00 E0 00 78 CC CC                 DB      000H, 0E0H, 000H, 078H, 0CCH, 0CCH, 078H, 000H ; D_95
+      78 00 
+E10E  78 CC 00 CC CC CC                 DB      078H, 0CCH, 000H, 0CCH, 0CCH, 0CCH, 07EH, 000H ; D_96
+      7E 00 
+E116  00 E0 00 CC CC CC                 DB      000H, 0E0H, 000H, 0CCH, 0CCH, 0CCH, 07EH, 000H ; D_97
+      7E 00 
+E11E  00 CC 00 CC CC 7C                 DB      000H, 0CCH, 000H, 0CCH, 0CCH, 07CH, 00CH, 0F8H ; D_98
+      0C F8 
+E126  C3 18 3C 66 66 3C                 DB      0C3H, 018H, 03CH, 066H, 066H, 03CH, 018H, 000H ; D_99
+      18 00 
+E12E  CC 00 CC CC CC CC                 DB      0CCH, 000H, 0CCH, 0CCH, 0CCH, 0CCH, 078H, 000H ; D_9A
+      78 00 
+E136  18 18 7E C0 C0 7E                 DB      018H, 018H, 07EH, 0C0H, 0C0H, 07EH, 018H, 018H ; D_9B
+      18 18 
+E13E  38 6C 64 F0 60 E6                 DB      038H, 06CH, 064H, 0F0H, 060H, 0E6H, 0FCH, 000H ; D_9C
+      FC 00 
+E146  CC CC 78 FC 30 FC                 DB      0CCH, 0CCH, 078H, 0FCH, 030H, 0FCH, 030H, 030H ; D_9D
+      30 30 
+E14E  F8 CC CC FA C6 CF                 DB      0F8H, 0CCH, 0CCH, 0FAH, 0C6H, 0CFH, 0C6H, 0C7H ; D_9E
+      C6 C7 
+E156  0E 1B 18 3C 18 18                 DB      00EH, 01BH, 018H, 03CH, 018H, 018H, 0DBH, 070H ; D_9F
+      DB 70 
+ 
+E15E  1C 00 78 0C 7C CC                 DB      01CH, 000H, 078H, 00CH, 07CH, 0CCH, 07EH, 000H ; D_A0
+      7E 00 
+E166  38 00 70 30 30 30                 DB      038H, 000H, 070H, 030H, 030H, 030H, 078H, 000H ; D_A1
+      78 00 
+E16E  00 1C 00 78 CC CC                 DB      000H, 01CH, 000H, 078H, 0CCH, 0CCH, 078H, 000H ; D_A2
+      78 00 
+E176  00 1C 00 CC CC CC                 DB      000H, 01CH, 000H, 0CCH, 0CCH, 0CCH, 07EH, 000H ; D_A3
+      7E 00 
+E17E  00 F8 00 F8 CC CC                 DB      000H, 0F8H, 000H, 0F8H, 0CCH, 0CCH, 0CCH, 000H ; D_A4
+      CC 00 
+E186  FC 00 CC EC FC DC                 DB      0FCH, 000H, 0CCH, 0ECH, 0FCH, 0DCH, 0CCH, 000H ; D_A5
+      CC 00 
+E18E  3C 6C 6C 3E 00 7E                 DB      03CH, 06CH, 06CH, 03EH, 000H, 07EH, 000H, 000H ; D_A6
+      00 00 
+E196  38 6C 6C 38 00 7C                 DB      038H, 06CH, 06CH, 038H, 000H, 07CH, 000H, 000H ; D_A7
+      00 00 
+E19E  30 00 30 60 C0 CC                 DB      030H, 000H, 030H, 060H, 0C0H, 0CCH, 078H, 000H ; D_A8
+      78 00 
+E1A6  00 00 00 FC C0 C0                 DB      000H, 000H, 000H, 0FCH, 0C0H, 0C0H, 0C0H, 000H ; D_A9
+      C0 00 
+E1AE  00 00 00 FC 0C 0C                 DB      000H, 000H, 000H, 0FCH, 00CH, 00CH, 000H, 000H ; D_AA
+      00 00 
+E1B6  C3 C6 CC DE 33 66                 DB      0C3H, 0C6H, 0CCH, 0DEH, 033H, 066H, 0CCH, 00FH ; D_AB
+      CC 0F 
+E1BE  C3 C6 CC DB 37 6F                 DB      0C3H, 0C6H, 0CCH, 0DBH, 037H, 06FH, 0CFH, 003H ; D_AC
+      CF 03 
+E1C6  18 18 00 18 18 18                 DB      018H, 018H, 000H, 018H, 018H, 018H, 018H, 000H ; D_AD
+      18 00 
+E1CE  00 33 66 CC 66 33                 DB      000H, 033H, 066H, 0CCH, 066H, 033H, 000H, 000H ; D_AE
+      00 00 
+E1D6  00 CC 66 33 66 CC                 DB      000H, 0CCH, 066H, 033H, 066H, 0CCH, 000H, 000H ; D_AF
+      00 00
+; --------------------------------------------------------------------------------------------------
+; A-55
+; --------------------------------------------------------------------------------------------------
+E1DE  22 88 22 88 22 88                 DB      022H, 088H, 022H, 088H, 022H, 088H, 022H, 088H ; D_B0
+      22 88 
+E1E6  55 AA 55 AA 55 AA                 DB      055H, 0AAH, 055H, 0AAH, 055H, 0AAH, 055H, 0AAH ; D_B1
+      55 AA 
+E1EE  DB 77 DB EE DB 77                 DB      0DBH, 077H, 0DBH, 0EEH, 0DBH, 077H, 0DBH, 0EEH ; D_B2
+      DB EE 
+E1F6  18 18 18 18 18 18                 DB      018H, 018H, 018H, 018H, 018H, 018H, 018H, 018H ; D_B3
+      18 18 
+E1FE  18 18 18 18 F8 18                 DB      018H, 018H, 018H, 018H, 0F8H, 018H, 018H, 018H ; D_B4
+      18 18 
+E206  18 18 F8 18 F8 18                 DB      018H, 018H, 0F8H, 018H, 0F8H, 018H, 018H, 018H ; D_B5
+      18 18 
+E20E  36 36 36 36 F6 36                 DB      036H, 036H, 036H, 036H, 0F6H, 036H, 036H, 036H ; D_B6
+      36 36 
+E216  00 00 00 00 FE 36                 DB      000H, 000H, 000H, 000H, 0FEH, 036H, 036H, 036H ; D_B7
+      36 36 
+E21E  00 00 F8 18 F8 18                 DB      000H, 000H, 0F8H, 018H, 0F8H, 018H, 018H, 018H ; D_B8
+      18 18 
+E226  36 36 F6 06 F6 36                 DB      036H, 036H, 0F6H, 006H, 0F6H, 036H, 036H, 036H ; D_B9
+      36 36 
+E22E  36 36 36 36 36 36                 DB      036H, 036H, 036H, 036H, 036H, 036H, 036H, 036H ; D_BA
+      36 36 
+E236  00 00 FE 06 F6 36                 DB      000H, 000H, 0FEH, 006H, 0F6H, 036H, 036H, 036H ; D_BB
+      36 36 
+E23E  36 36 F6 06 FE 00                 DB      036H, 036H, 0F6H, 006H, 0FEH, 000H, 000H, 000H ; D_BC
+      00 00 
+E246  36 36 36 36 FE 00                 DB      036H, 036H, 036H, 036H, 0FEH, 000H, 000H, 000H ; D_BD
+      00 00 
+E24E  18 18 F8 18 F8 00                 DB      018H, 018H, 0F8H, 018H, 0F8H, 000H, 000H, 000H ; D_BE
+      00 00 
+E256  00 00 00 00 F8 18                 DB      000H, 000H, 000H, 000H, 0F8H, 018H, 018H, 018H ; D_BF
+      18 18 
+E25E  18 18 18 18 1F 00                 DB      018H, 018H, 018H, 018H, 01FH, 000H, 000H, 000H ; D_C0
+      00 00 
+E266  18 18 18 18 FF 00                 DB      018H, 018H, 018H, 018H, 0FFH, 000H, 000H, 000H ; D_C1
+      00 00 
+E26E  00 00 00 00 FF 18                 DB      000H, 000H, 000H, 000H, 0FFH, 018H, 018H, 018H ; D_C2
+      18 18 
+E276  18 18 18 18 1F 18                 DB      018H, 018H, 018H, 018H, 01FH, 018H, 018H, 018H ; D_C3
+      18 18 
+E27E  00 00 00 00 FF 00                 DB      000H, 000H, 000H, 000H, 0FFH, 000H, 000H, 000H ; D_C4
+      00 00 
+E286  18 18 18 18 FF 18                 DB      018H, 018H, 018H, 018H, 0FFH, 018H, 018H, 018H ; D_C5
+      18 18 
+E28E  18 18 1F 18 1F 18                 DB      018H, 018H, 01FH, 018H, 01FH, 018H, 018H, 018H ; D_C6
+      18 18 
+E296  36 36 36 36 37 36                 DB      036H, 036H, 036H, 036H, 037H, 036H, 036H, 036H ; D_C7
+      36 36 
+E29E  36 36 37 30 3F 00                 DB      036H, 036H, 037H, 030H, 03FH, 000H, 000H, 000H ; D_C8
+      00 00 
+E2A6  00 00 3F 30 37 36                 DB      000H, 000H, 03FH, 030H, 037H, 036H, 036H, 036H ; D_C9
+      36 36 
+E2AE  36 36 F7 00 FF 00                 DB      036H, 036H, 0F7H, 000H, 0FFH, 000H, 000H, 000H ; D_CA
+      00 00 
+E2B6  00 00 FF 00 F7 36                 DB      000H, 000H, 0FFH, 000H, 0F7H, 036H, 036H, 036H ; D_CB
+      36 36 
+E2BE  36 36 37 30 37 36                 DB      036H, 036H, 037H, 030H, 037H, 036H, 036H, 036H ; D_CC
+      36 36 
+E2C6  00 00 FF 00 FF 00                 DB      000H, 000H, 0FFH, 000H, 0FFH, 000H, 000H, 000H ; D_CD
+      00 00 
+E2CE  36 36 F7 00 F7 36                 DB      036H, 036H, 0F7H, 000H, 0F7H, 036H, 036H, 036H ; D_CE
+      36 36 
+E2D6  18 18 FF 00 FF 00                 DB      018H, 018H, 0FFH, 000H, 0FFH, 000H, 000H, 000H ; D_CF
+      00 00 
+E2DE  36 36 36 36 FF 00                 DB      036H, 036H, 036H, 036H, 0FFH, 000H, 000H, 000H ; D_D0
+      00 00 
+E2E6  00 00 FF 00 FF 18                 DB      000H, 000H, 0FFH, 000H, 0FFH, 018H, 018H, 018H ; D_D1
+      18 18 
+E2EE  00 00 00 00 FF 36                 DB      000H, 000H, 000H, 000H, 0FFH, 036H, 036H, 036H ; D_D2
+      36 36 
+E2F6  36 36 36 36 3F 00                 DB      036H, 036H, 036H, 036H, 03FH, 000H, 000H, 000H ; D_D3
+      00 00 
+E2FE  18 18 1F 18 1F 00                 DB      018H, 018H, 01FH, 018H, 01FH, 000H, 000H, 000H ; D_D4
+      00 00 
+E306  00 00 1F 18 1F 18                 DB      000H, 000H, 01FH, 018H, 01FH, 018H, 018H, 018H ; D_D5
+      18 18 
+E30E  00 00 00 00 3F 36                 DB      000H, 000H, 000H, 000H, 03FH, 036H, 036H, 036H ; D_D6
+      36 36 
+E316  36 36 36 36 FF 36                 DB      036H, 036H, 036H, 036H, 0FFH, 036H, 036H, 036H ; D_D7
+      36 36 
+E31E  18 18 FF 18 FF 18                 DB      018H, 018H, 0FFH, 018H, 0FFH, 018H, 018H, 018H ; D_D8
+      18 18 
+E326  18 18 18 18 F8 00                 DB      018H, 018H, 018H, 018H, 0F8H, 000H, 000H, 000H ; D_D9
+      00 00 
+E32E  00 00 00 00 1F 18                 DB      000H, 000H, 000H, 000H, 01FH, 018H, 018H, 018H ; D_DA
+      18 18 
+E336  FF FF FF FF FF FF                 DB      0FFH, 0FFH, 0FFH, 0FFH, 0FFH, 0FFH, 0FFH, 0FFH ; D_DB
+      FF FF 
+E33E  00 00 00 00 FF FF                 DB      000H, 000H, 000H, 000H, 0FFH, 0FFH, 0FFH, 0FFH ; D_DC
+      FF FF 
+E346  F0 F0 F0 F0 F0 F0                 DB      0F0H, 0F0H, 0F0H, 0F0H, 0F0H, 0F0H, 0F0H, 0F0H ; D_DD
+      F0 F0 
+E34E  0F 0F 0F 0F 0F 0F                 DB      00FH, 00FH, 00FH, 00FH, 00FH, 00FH, 00FH, 00FH ; D_DE
+      0F 0F 
+E356  FF FF FF FF 00 00                 DB      0FFH, 0FFH, 0FFH, 0FFH, 000H, 000H, 000H, 000H ; D_DF
+      00 00
+; --------------------------------------------------------------------------------------------------
+; A-56
+; --------------------------------------------------------------------------------------------------
+E35E  00 00 76 DC C8 DC                 DB      000H, 000H, 076H, 0DCH, 0C8H, 0DCH, 076H, 000H ; D_E0
+      76 00 
+E366  00 78 CC F8 CC F8                 DB      000H, 078H, 0CCH, 0F8H, 0CCH, 0F8H, 0C0H, 0C0H ; D_E1
+      C0 C0 
+E36E  00 FC CC C0 C0 C0                 DB      000H, 0FCH, 0CCH, 0C0H, 0C0H, 0C0H, 0C0H, 000H ; D_E2
+      C0 00 
+E376  00 FE 6C 6C 6C 6C                 DB      000H, 0FEH, 06CH, 06CH, 06CH, 06CH, 06CH, 000H ; D_E3
+      6C 00 
+E37E  FC CC 60 30 60 CC                 DB      0FCH, 0CCH, 060H, 030H, 060H, 0CCH, 0FCH, 000H ; D_E4
+      FC 00 
+E386  00 00 7E D8 D8 D8                 DB      000H, 000H, 07EH, 0D8H, 0D8H, 0D8H, 070H, 000H ; D_E5
+      70 00 
+E38E  00 66 66 66 66 7C                 DB      000H, 066H, 066H, 066H, 066H, 07CH, 060H, 0C0H ; D_E6
+      60 C0 
+E396  00 76 DC 18 18 18                 DB      000H, 076H, 0DCH, 018H, 018H, 018H, 018H, 000H ; D_E7
+      18 00 
+E39E  FC 30 78 CC CC 78                 DB      0FCH, 030H, 078H, 0CCH, 0CCH, 078H, 030H, 0FCH ; D_E8
+      30 FC 
+E3A6  38 6C C6 FE C6 6C                 DB      038H, 06CH, 0C6H, 0FEH, 0C6H, 06CH, 038H, 000H ; D_E9
+      38 00 
+E3AE  38 6C C6 C6 6C 6C                 DB      038H, 06CH, 0C6H, 0C6H, 06CH, 06CH, 0EEH, 000H ; D_EA
+      EE 00 
+E3B6  1C 30 18 7C CC CC                 DB      01CH, 030H, 018H, 07CH, 0CCH, 0CCH, 078H, 000H ; D_EB
+      78 00 
+E3BE  00 00 7E DB DB 7E                 DB      000H, 000H, 07EH, 0DBH, 0DBH, 07EH, 000H, 000H ; D_EC
+      00 00 
+E3C6  06 0C 7E DB DB 7E                 DB      006H, 00CH, 07EH, 0DBH, 0DBH, 07EH, 060H, 0C0H ; D_ED
+      60 C0 
+E3CE  38 60 C0 F8 C0 60                 DB      038H, 060H, 0C0H, 0F8H, 0C0H, 060H, 038H, 000H ; D_EE
+      38 00 
+E3D6  78 CC CC CC CC CC                 DB      078H, 0CCH, 0CCH, 0CCH, 0CCH, 0CCH, 0CCH, 000H ; D_EF
+      CC 00 
+ 
+E3DE  00 FC 00 FC 00 FC                 DB      000H, 0FCH, 000H, 0FCH, 000H, 0FCH, 000H, 000H ; D_F0
+      00 00 
+E3E6  30 30 FC 30 30 00                 DB      030H, 030H, 0FCH, 030H, 030H, 000H, 0FCH, 000H ; D_F1
+      FC 00 
+E3EE  60 30 18 30 60 00                 DB      060H, 030H, 018H, 030H, 060H, 000H, 0FCH, 000H ; D_F2
+      FC 00 
+E3F6  18 30 60 30 18 00                 DB      018H, 030H, 060H, 030H, 018H, 000H, 0FCH, 000H ; D_F3
+      FC 00 
+E3FE  0E 1B 1B 18 18 18                 DB      00EH, 01BH, 01BH, 018H, 018H, 018H, 018H, 018H ; D_F4
+      18 18 
+E406  18 18 18 18 18 DB                 DB      018H, 018H, 018H, 018H, 018H, 0DBH, 0DBH, 070H ; D_F5
+      DB 70 
+E40E  30 30 00 FC 00 30                 DB      030H, 030H, 000H, 0FCH, 000H, 030H, 030H, 000H ; D_F6
+      30 00 
+E416  00 76 DC 00 76 DC                 DB      000H, 076H, 0DCH, 000H, 076H, 0DCH, 000H, 000H ; D_F7
+      00 00 
+E41E  38 6C 6C 38 00 00                 DB      038H, 06CH, 06CH, 038H, 000H, 000H, 000H, 000H ; D_F8
+      00 00 
+E426  00 00 00 18 18 00                 DB      000H, 000H, 000H, 018H, 018H, 000H, 000H, 000H ; D_F9
+      00 00 
+E42E  00 00 00 00 18 00                 DB      000H, 000H, 000H, 000H, 018H, 000H, 000H, 000H ; D_FA
+      00 00 
+E436  0F 0C 0C 0C EC 6C                 DB      00FH, 00CH, 00CH, 00CH, 0ECH, 06CH, 03CH, 01CH ; D_FB
+      3C 1C 
+E43E  78 6C 6C 6C 6C 00                 DB      078H, 06CH, 06CH, 06CH, 06CH, 000H, 000H, 000H ; D_FC
+      00 00 
+E446  70 18 30 60 78 00                 DB      070H, 018H, 030H, 060H, 078H, 000H, 000H, 000H ; D_FD
+      00 00 
+E44E  00 00 3C 3C 3C 3C                 DB      000H, 000H, 03CH, 03CH, 03CH, 03CH, 000H, 000H ; D_FE
+      00 00 
+E456  00 00 00 00 00 00                 DB      000H, 000H, 000H, 000H, 000H, 000H, 000H, 000H ; D_FF
+      00 00
+
+                                ASSUME  CS:CODE,DS:DATA
+                                ;---------------------------------------------------------------
+                                ;       SET_CTYPE
+                                ;               THIS ROUTINE SETS THE CURSOR VALUE
+                                ;       INPUT   (CX) HAS CURSOR VALUE CH-START LINE, CL-STOP LINE
+                                ;       OUTPUT  NONE
+                                ;---------------------------------------------------------------
+E45E                            SET_CTYPE       PROC    NEAR
+E45E  80 FC 04                          CMP     AH,4            ; IN GRAPHICS MODE?
+E461  72 03                             JC      C23X            ; NO, JUMP
+E463  80 CD 20                          OR      CH,20H          ; YES, DISABLE CURSOR
+E466  B4 0A                     C23X:   MOV     AH,10           ; 6845 REGISTER FOR CURSOR SET
+E468  89 0E 0060 R                      MOV     CURSOR_MODE,CX  ; SAVE IN DATA AREA
+E46C  E8 E472 R                         CALL    C23             ; OUTPUT CX REG
+E46F  E9 0F70 R                         JMP     VIDEO_RETURN
+                                ;THIS ROUTINE OUTPUTS THE CX REGISTER TO THE 6845 REGS NAMED IN AH
+E472  8B 16 0063 R              C23:    MOV     DX,ADDR_6845    ; ADDRESS REGISTER
+E476  8A C4                             MOV     AL,AH           ; GET VALUE
+E478  EE                                OUT     DX,AL           ; REGISTER SET
+E479  42                                INC     DX              ; DATA REGISTER
+E47A  8A C5                             MOV     AL,CH           ; DATA
+E47C  EE                                OUT     DX,AL
+E47D  4A                                DEC     DX
+E47E  8A C4                             MOV     AL,AH
+E480  FE C0                             INC     AL              ; POINT TO OTHER DATA REGISTER
+E482  EE                                OUT     DX,AL           ; SET FOR SECOND REGISTER
+E483  42                                INC     DX
+E484  8A C1                             MOV     AL,CL           ; SECOND DATA VALUE
+E486  EE                                OUT     DX,AL
+E487  C3                                RET                     ; ALL DONE
+E488                            SET_CTYPE       ENDP
+; --------------------------------------------------------------------------------------------------
+; A-57
+; --------------------------------------------------------------------------------------------------
+                                ;----------------------------------------
+                                ; SET_CPOS
+                                ;      THIS ROUTINE SETS THE CURRENT CURSOR POSITION TO THE
+                                ;      NEW X-Y VALUES PASSED
+                                ;
+                                ; INPUT
+                                ;      DX - ROW,COLUMN OF NEW CURSOR
+                                ;      BH - DISPLAY PAGE OF CURSOR
+                                ;
+                                ; OUTPUT
+                                ;      CURSOR IS SET AT 6845 IF DISPLAY PAGE IS CURRENT DISPLAY
+                                ;----------------------------------------
+E488                            SET_CPOS        PROC    NEAR
+E488  8A CF                             MOV     CL,BH
+E48A  32 ED                             XOR     CH,CH           ; ESTABLISH LOOP COUNT
+E48C  D1 E1                             SAL     CX,1            ; WORD OFFSET
+E48E  8B F1                             MOV     SI,CX           ; USE INDEX REGISTER
+E490  89 94 0050 R                      MOV     [SI+OFFSET CURSOR_POSN],DX ; SAVE THE POINTER
+E494  38 3E 0062 R                      CMP     ACTIVE_PAGE,BH
+E498  75 05                             JNZ     C24             ; SET_CPOS_RETURN
+E49A  8B C2                             MOV     AX,DX           ; GET ROW/COLUMN TO AX
+E49C  E8 E4A2 R                         CALL    C25             ; CURSOR_SET
+E49F  E9 0F70 R                 C24:    JMP     VIDEO_RETURN
+E4A2                            SET_CPOS        ENDP
+                                ;------ SET CURSOR POSITION, AX HAS ROW/COLUMN FOR CURSOR
+E4A2                            C25     PROC    NEAR
+E4A2  E8 E5C2 R                         CALL    POSITION        ; DETERMINE LOCATION IN REGEN
+                                                                 ; BUFFER
+E4A5  8B C8                             MOV     CX,AX
+E4A7  03 0E 004E R                      ADD     CX,CRT_START    ; ADD IN THE START ADDRESS FOR THIS
+                                                                 ; PAGE
+E4AB  D1 F9                             SAR     CX,1            ; DIVIDE BY 2 FOR CHAR ONLY COUNT
+E4AD  B4 0E                             MOV     AH,14           ; REGISTER NUMBER FOR CURSOR
+E4AF  E8 E472 R                         CALL    C23             ; OUTPUT THE VALUE TO THE 6845
+E4B2  C3                                RET
+E4B3                            C25     ENDP
+                                ;----------------------------------------
+                                ; ACT_DISP_PAGE
+                                ;      THIS ROUTINE SETS THE ACTIVE DISPLAY PAGE, ALLOWING
+                                ;      THE FULL USE OF THE RAM SET ASIDE FOR THE VIDEO ATTACHMENT
+                                ;
+                                ; INPUT
+                                ;      AL HAS THE NEW ACTIVE DISPLAY PAGE
+                                ;
+                                ; OUTPUT
+                                ;      THE 6845 IS RESET TO DISPLAY THAT PAGE
+                                ;----------------------------------------
+E4B3                            ACT_DISP_PAGE   PROC    NEAR
+E4B3  A8 80                             TEST    AL,080H         ; CRT/CPU PAGE REG FUNCTION
+E4B5  75 24                             JNZ     SET_CRTCPU      ; YES, GO HANDLE IT
+E4B7  A2 0062 R                         MOV     ACTIVE_PAGE,AL  ; SAVE ACTIVE PAGE VALUE
+E4BA  8B 0E 004C R                      MOV     CX,CRT_LEN      ; GET SAVED LENGTH OF REGEN BUFFER
+E4BE  98                                CBW                     ; CONVERT AL TO WORD
+E4BF  50                                PUSH    AX              ; SAVE PAGE VALUE
+E4C0  F7 E1                             MUL     CX              ; DISPLAY PAGE TIMES REGEN LENGTH
+E4C2  A3 004E R                         MOV     CRT_START,AX    ; SAVE START ADDRESS FOR LATER USE
+E4C5  8B C8                             MOV     CX,AX           ; START ADDRESS TO CX
+E4C7  D1 F9                             SAR     CX,1            ; DIVIDE BY 2 FOR 6845 HANDLING
+E4C9  B4 0C                             MOV     AH,12           ; 6845 REGISTER FOR START ADDRESS
+E4CB  E8 E472 R                         CALL    C23
+E4CE  5B                                POP     BX              ; RECOVER PAGE VALUE
+E4CF  D1 E3                             SAL     BX,1            ; *2 FOR WORD OFFSET
+E4D1  8B 87 0050 R                      MOV     AX,[BX + OFFSET CURSOR_POSN] ; GET CURSOR FOR THIS
+                                                                 ; PAGE
+E4D5  E8 E4A2 R                         CALL    C25             ; SET THE CURSOR POSITION
+E4D8  E9 0F70 R                         JMP     VIDEO_RETURN
+                                ;----------------------------------------
+                                ; SET_CRTCPU
+                                ;      THIS ROUTINE READS OR WRITES THE CRT/CPU PAGE REGISTERS
+                                ;
+                                ; INPUT
+                                ;      (AL) = 83H       SET BOTH CRT AND CPU PAGE REGS
+                                ;             (BH) =    VALUE TO SET IN CRT PAGE REG
+                                ;             (BL) =    VALUE TO SET IN CPU PAGE REG
+                                ;      (AL) = 82H       SET CRT PAGE REG
+                                ;             (BH) =    VALUE TO SET IN CRT PAGE REG
+                                ;      (AL) = 81H       SET CPU PAGE REG
+                                ;             (BL) =    VALUE TO SET IN CPU PAGE REG
+                                ;      (AL) = 80H       READ CURRENT VALUE OF CRT/CPU PAGE REGS
+                                ;
+                                ; OUTPUT
+                                ;      ALL FUNCTIONS RETURN
+                                ;             (BH) = CURRENT CONTENTS OF CRT PAGE REG
+                                ;             (BL) = CURRENT CONTENTS OF CPU PAGE REG
+                                ;----------------------------------------
+E4DB                           SET_CRTCPU:
+E4DB  8A E0                            MOV     AH,AL           ; SAVE REQUEST IN AH
+E4DD  BA 03DA                          MOV     DX,VGA_CTL      ; SET ADDRESS OF GATE ARRAY
+E4E0  EC                       C26:    IN      AL,DX           ; GET STATUS
+E4E1  24 08                            AND     AL,08H          ; VERTICAL RETRACE?
+E4E3  74 FB                            JZ      C26             ; NO, WAIT FOR IT
+E4E5  BA 03DF                          MOV     DX,PAGREG       ; SET IO ADDRESS OF PAGE REG
+E4E8  A0 008A R                        MOV     AL,PAGDAT       ; GET DATA LAST OUTPUT TO REG
+E4EB  80 FC 80                         CMP     AH,80H          ; READ FUNCTION REQUESTED?
+E4EE  74 27                            JZ      C29             ; YES, DON'T SET ANYTHING
+E4F0  80 FC 84                         CMP     AH,84H          ; VALID REQUEST?
+E4F3  73 22                            JNC     C29             ; NO, PRETEND IT WAS A READ REQUEST
+E4F5  F6 C4 01                         TEST    AH,1            ; SET CPU REG?
+E4F8  74 0D                            JZ      C27             ; NO, GO SEE ABOUT CRT REG
+E4FA  D0 E3                            SHL     BL,1            ; SHIFT VALUE TO RIGHT BIT POSITION
+E4FC  D0 E3                            SHL     BL,1
+E4FE  D0 E3                            SHL     BL,1
+E500  24 C7                            AND     AL,NOT CPUREG   ; CLEAR OLD CPU VALUE
+E502  80 E3 38                         AND     BL,CPUREG       ; BE SURE UNRELATED BITS ARE ZERO
+E505  0A C3                            OR      AL,BL           ; OR IN NEW VALUE
+; --------------------------------------------------------------------------------------------------
+; A-58
+; --------------------------------------------------------------------------------------------------
+E507  F6 C4 02                  C27:    TEST    AH,2            ; SET CRT REG?
+E50A  74 07                             JZ      C28             ; NO, GO RETURN CURRENT SETTINGS
+E50C  24 F8                             AND     AL,NOT CRTREG   ; CLEAR OLD CRT VALUE
+E50E  80 E7 07                          AND     BH,CRTREG       ; BE SURE UNRELATED BITS ARE ZERO
+E511  0A C7                             OR      AL,BH           ; OR IN NEW VALUE
+E513  EE                        C28:    OUT     DX,AL           ; SET NEW VALUES
+E514  A2 008A R                         MOV     PAGDAT,AL       ; SAVE COPY IN RAM
+E517  8A D8                     C29:    MOV     BL,AL           ; GET CPU REG VALUE
+E519  80 E3 38                          AND     BL,CPUREG       ; CLEAR EXTRA BITS
+E51C  D0 FB                             SAR     BL,1            ; RIGHT JUSTIFY IN BL
+E51E  D0 FB                             SAR     BL,1
+E520  D0 FB                             SAR     BL,1
+E522  8A F8                             MOV     BH,AL           ; GET CRT REG VALUE
+E524  80 E7 07                          AND     BH,CRTREG       ; CLEAR EXTRA BITS
+E527  5F                                POP     DI              ; RESTORE SOME REGS
+E528  5E                                POP     SI
+E529  58                                POP     AX              ; DISCARD SAVED BX
+E52A  E9 0F73 R                         JMP     C22             ; RETURN
+E52D                            ACT_DISP_PAGE   ENDP
+
+                                ;-----------------------------------------
+                                ; READ_CURSOR
+                                ;
+                                ; THIS ROUTINE READS THE CURRENT CURSOR VALUE FROM THE
+                                ; 6845, FORMATS IT, AND SENDS IT BACK TO THE CALLER
+                                ;
+                                ; INPUT
+                                ;      BH - PAGE OF CURSOR
+                                ; OUTPUT
+                                ;      DX - ROW, COLUMN OF THE CURRENT CURSOR POSITION
+                                ;      CX - CURRENT CURSOR MODE
+                                ;-----------------------------------------
+E52D                            READ_CURSOR     PROC    NEAR
+E52D  8A DF                             MOV     BL,BH
+E52F  32 FF                             XOR     BH,BH
+E531  D1 E3                             SAL     BX,1            ; WORD OFFSET
+E533  8B 97 0050 R                      MOV     DX,[BX+OFFSET CURSOR_POSN]
+E537  8B 0E 0060 R                      MOV     CX,CURSOR_MODE
+E53B  5F                                POP     DI
+E53C  5E                                POP     SI
+E53D  5B                                POP     BX
+E53E  58                                POP     AX              ; DISCARD SAVED CX AND DX
+E53F  58                                POP     AX
+E540  1F                                POP     DS
+E541  07                                POP     ES
+E542  CF                                IRET
+E543                            READ_CURSOR     ENDP
+                                ;
+                                ;-----------------------------------------
+                                ; SET COLOR
+                                ;
+                                ; THIS ROUTINE WILL ESTABLISH THE BACKGROUND COLOR, THE
+                                ; OVERSCAN COLOR, AND THE FOREGROUND COLOR SET FOR GRAPHICS
+                                ;
+                                ; INPUT
+                                ;
+                                ;      (BH) HAS COLOR ID
+                                ;
+                                ;           IF BH=0, THE BACKGROUND COLOR VALUE IS SET
+                                ;           FROM THE LOW BITS OF BL (0-31)
+                                ;           IN GRAPHIC MODES, BOTH THE BACKGROUND AND
+                                ;           BORDER ARE SET.  IN ALPHA MODES, ONLY THE
+                                ;           BORDER IS SET.
+                                ;           IF BH=1, THE PALETTE SELECTION IS MADE
+                                ;           BASED ON THE LOW BIT OF BL:
+                                ;                2 COLOR MODE:
+                                ;                     0 = WHITE FOR COLOR 1
+                                ;                     1 = BLACK FOR COLOR 1
+                                ;                4 COLOR MODES:
+                                ;                     0 = GREEN, RED, YELLOW FOR
+                                ;                         COLORS 1,2,3
+                                ;                     1 = BLUE, CYAN, MAGENTA FOR
+                                ;                         COLORS 1,2,3
+                                ;                16 COLOR MODES:
+                                ;                     ALWAYS SETS UP PALETTE AS:
+                                ;                          BLUE FOR COLOR 1
+                                ;                          GREEN FOR COLOR 2
+                                ;                          CYAN FOR COLOR 3
+                                ;                          RED FOR COLOR 4
+                                ;                          MAGENTA FOR COLOR 5
+                                ;                          BROWN FOR COLOR 6
+                                ;                          LIGHT GRAY FOR COLOR 7
+                                ;                          DARK GRAY FOR COLOR 8
+                                ;                          LIGHT BLUE FOR COLOR 9
+                                ;                          LIGHT GREEN FOR COLOR 10
+                                ;                          LIGHT CYAN FOR COLOR 11
+                                ;                          LIGHT RED FOR COLOR 12
+                                ;                          LIGHT MAGENTA FOR COLOR 13
+                                ;                          YELLOW FOR COLOR 14
+                                ;                          WHITE FOR COLOR 15
+                                ;
+                                ;      (BL) HAS THE COLOR VALUE TO BE USED
+                                ;
+                                ; OUTPUT
+                                ;
+                                ;      THE COLOR SELECTION IS UPDATED
+                                ;-----------------------------------------
+E543                            SET_COLOR       PROC    NEAR
+E543  BA 03DA                           MOV     DX,VGA_CTL      ; I/O PORT FOR PALETTE
+E546  EC                        C30:    IN      AL,DX           ; SYNC UP VGA FOR REG ADDRESS
+E547  A8 08                             TEST    AL,8            ; IS VERTICAL RETRACE ON?
+E549  74 FB                             JZ      C30             ; NO, WAIT UNTIL IT IS
+E54B  0A FF                             OR      BH,BH           ; IS THIS COLOR 0?
+E54D  75 19                             JNZ     C31             ; OUTPUT COLOR 1
+; --------------------------------------------------------------------------------------------------
+; A-59
+; --------------------------------------------------------------------------------------------------
+                                ;------- HANDLE COLOR 0 BY SETTING THE BACKGROUND COLOR
+                                ;        AND BORDER COLOR
+E54F  80 3E 0049 R 04                  CMP     CRT_MODE,4      ; IN ALPHA MODE?
+E554  72 06                            JC      C305            ; YES, JUST SET BORDER REG
+E556  B0 10                            MOV     AL,10H          ; SET PALETTE REG 0
+E558  EE                               OUT     DX,AL           ; SELECT VGA REG
+E559  8A C3                            MOV     AL,BL           ; GET COLOR
+E55B  EE                               OUT     DX,AL           ; SET IT
+E55C  B0 02                     C305:   MOV     AL,2            ; SET BORDER REG
+E55E  EE                               OUT     DX,AL           ; SELECT VGA BORDER REG
+E55F  8A C3                            MOV     AL,BL           ; GET COLOR
+E561  EE                               OUT     DX,AL           ; SET IT
+E562  A2 0066 R                        MOV     CRT_PALETTE,AL  ; SAVE THE COLOR VALUE
+E565  E9 0F70 R                        JMP     VIDEO_RETURN
+
+                                ;------- HANDLE COLOR 1 BY CHANGING PALETTE REGISTERS
+E568  A0 0049 R                 C31:    MOV     AL,CRT_MODE     ; GET CURRENT MODE
+E56B  B9 0D95 R                         MOV     CX,OFFSET M0072 ; POINT TO 2 COLOR TABLE ENTRY
+E56E  3C 06                             CMP     AL,6            ; 2 COLOR MODE?
+E570  74 0F                             JE      C33             ; YES, JUMP
+E572  3C 04                             CMP     AL,4            ; 4 COLOR MODE?
+E574  74 08                             JE      C32             ; YES, JUMP
+E576  3C 05                             CMP     AL,5            ; 4 COLOR MODE?
+E578  74 04                             JE      C32             ; YES, JUMP
+E57A  3C 0A                             CMP     AL,0AH          ; 4 COLOR MODE?
+E57C  75 20                             JNE     C36             ; NO, GO TO 16 COLOR SET UP
+E57E  B9 0D9D R                 C32:    MOV     CX,OFFSET M0074 ; POINT TO 4 COLOR TABLE ENTRY
+E581  D0 CB                     C33:    ROR     BL,1            ; SELECT ALTERNATE SET?
+E583  73 03                             JNC     C34             ; NO, JUMP
+E585  83 C1 04                          ADD     CX,M0072L       ; POINT TO NEXT ENTRY
+E588  8B D9                     C34:    MOV     BX,CX           ; TABLE ADDRESS IN BX
+E58A  43                                INC     BX              ; SKIP OVER BACKGROUND COLOR
+E58B  B9 0003                           MOV     CX,M0072L-1     ; SET NUMBER OF REGS TO FILL
+E58E  B4 11                     C35:    MOV     AH,11H          ; AH IS REGISTER COUNTER
+E590  8A C4                             MOV     AL,AH           ; GET REG NUMBER
+E592  EE                                OUT     DX,AL           ; SELECT IT
+E593  2E: 8A 07                         MOV     AL,CS:[BX]      ; GET DATA
+E596  EE                                OUT     DX,AL           ; SET IT
+E597  FE C4                             INC     AH              ; NEXT REG
+E599  43                                INC     BX              ; NEXT TABLE VALUE
+E59A  E2 F4                             LOOP    C35
+E59C  EB 0D                             JMP     SHORT C38
+E59E  B4 11                     C36:    MOV     AH,11H          ; AH IS REGISTER COUNTER
+E5A0  B9 000F                           MOV     CX,15           ; NUMBER OF PALETTES
+E5A3  8A C4                     C37:    MOV     AL,AH           ; GET REG NUMBER
+E5A5  EE                                OUT     DX,AL           ; SELECT IT
+E5A6  EE                                OUT     DX,AL           ; SET PALETTE VALUE
+E5A7  FE C4                             INC     AH              ; NEXT REG
+E5A9  E2 F8                             LOOP    C37
+E5AB  32 C0                     C38:    XOR     AL,AL           ; SELECT LOW REG TO ENABLE VIDEO
+                                                                 ; AGAIN
+E5AD  EE                                OUT     DX,AL
+E5AE  E9 0F70 R                         JMP     VIDEO_RETURN
+E5B1                            SET_COLOR       ENDP
+                                ;-----------------------------------------
+                                ; VIDEO STATE
+                                ; RETURNS THE CURRENT VIDEO STATE IN AX
+                                ; AH = NUMBER OF COLUMNS ON THE SCREEN
+                                ; AL = CURRENT VIDEO MODE
+                                ; BH = CURRENT ACTIVE PAGE
+                                ;-----------------------------------------
+E5B1                            VIDEO_STATE     PROC    NEAR
+E5B1  8A 26 004A R                      MOV     AH,BYTE PTR CRT_COLS ; GET NUMBER OF COLUMNS
+E5B5  A0 0049 R                         MOV     AL,CRT_MODE     ; CURRENT MODE
+E5B8  8A 3E 0062 R                      MOV     BH,ACTIVE_PAGE  ; GET CURRENT ACTIVE PAGE
+E5BC  5F                                POP     DI              ; RECOVER REGISTERS
+E5BD  5E                                POP     SI
+E5BE  59                                POP     CX              ; DISCARD SAVED BX
+E5BF  E9 0F73 R                         JMP     C22             ; RETURN TO CALLER
+E5C2                            VIDEO_STATE     ENDP
+                                ;-----------------------------------------
+                                ; POSITION
+                                ; THIS SERVICE ROUTINE CALCULATES THE REGEN BUFFER ADDRESS
+                                ; OF A CHARACTER IN THE ALPHA MODE
+                                ; INPUT
+                                ;        AX = ROW, COLUMN POSITION
+                                ; OUTPUT
+                                ;        AX = OFFSET OF CHAR POSITION IN REGEN BUFFER
+                                ;-----------------------------------------
+E5C2                            POSITION        PROC    NEAR
+E5C2  53                                PUSH    BX              ; SAVE REGISTER
+E5C3  8B D8                             MOV     BX,AX
+E5C5  8A C4                             MOV     AL,AH           ; ROWS TO AL
+E5C7  F6 26 004A R                      MUL     BYTE PTR CRT_COLS ; DETERMINE BYTES TO ROW
+E5CB  32 FF                             XOR     BH,BH
+E5CD  03 C3                             ADD     AX,BX           ; ADD IN COLUMN VALUE
+E5CF  D1 E0                             SAL     AX,1            ; * 2 FOR ATTRIBUTE BYTES
+E5D1  5B                                POP     BX
+E5D2  C3                                RET
+E5D3                            POSITION        ENDP
+                                ;-----------------------------------------
+                                ; SCROLL UP
+                                ; THIS ROUTINE MOVES A BLOCK OF CHARACTERS UP
+                                ; ON THE SCREEN
+                                ; INPUT
+                                ;        (AH) = CURRENT CRT MODE
+                                ;        (AL) = NUMBER OF ROWS TO SCROLL
+                                ;        (CX) = ROW/COLUMN OF UPPER LEFT CORNER
+                                ;        (DX) = ROW/COLUMN OF LOWER RIGHT CORNER
+                                ;        (BH) = ATTRIBUTE TO BE USED ON BLANKED LINE
+                                ;        (DS) = DATA SEGMENT
+                                ;        (ES) = REGEN BUFFER SEGMENT
+                                ; OUTPUT
+                                ;        NONE -- THE REGEN BUFFER IS MODIFIED
+                                ;-----------------------------------------
+; --------------------------------------------------------------------------------------------------
+; A-60
+; --------------------------------------------------------------------------------------------------
+                                ASSUME  CS:CODE,DS:DATA,ES:DATA
+E5D3                            SCROLL_UP       PROC    NEAR
+E5D3  8A D8                             MOV     BL,AL           ; SAVE LINE COUNT IN BL
+E5D5  80 FC 04                          CMP     AH,4            ; TEST FOR GRAPHICS MODE
+E5D8  72 03                             JC      C39             ; HANDLE SEPARATELY
+E5DA  E9 F259 R                         JMP     GRAPHICS_UP
+ 
+E5DD                            C39:                            ; UP_CONTINUE
+E5DD  53                                PUSH    BX              ; SAVE FILL ATTRIBUTE IN BH
+E5DE  8B C1                             MOV     AX,CX           ; UPPER LEFT POSITION
+E5E0  E8 E609 R                         CALL    SCROLL_POSITION ; DO SETUP FOR SCROLL
+E5E3  74 20                             JZ      C44             ; BLANK_FIELD
+E5E5  03 F0                             ADD     SI,AX           ; FROM ADDRESS
+E5E7  8A E6                             MOV     AH,DH           ; # ROWS IN BLOCK
+E5E9  2A E3                             SUB     AH,BL           ; # ROWS TO BE MOVED
+E5EB  E8 E62F R                 C40:    CALL    C45             ; MOVE ONE ROW
+E5EE  03 F5                             ADD     SI,BP
+E5F0  03 FD                             ADD     DI,BP           ; POINT TO NEXT LINE IN BLOCK
+E5F2  FE CC                             DEC     AH              ; COUNT OF LINES TO MOVE
+E5F4  75 F5                             JNZ     C40             ; ROW_LOOP
+E5F6  58                        C41:    POP     AX              ; RECOVER ATTRIBUTE IN AH
+E5F7  B0 20                             MOV     AL,' '          ; FILL WITH BLANKS
+E5F9  E8 E638 R                 C42:    CALL    C46             ; CLEAR THE ROW
+E5FC  03 FD                             ADD     DI,BP           ; POINT TO NEXT LINE
+E5FE  FE CB                             DEC     BL              ; COUNTER OF LINES TO SCROLL
+E600  75 F7                             JNZ     C42             ; CLEAR_LOOP
+E602  E9 0F70 R                 C43:    JMP     VIDEO_RETURN
+E605  8A DE                     C44:    MOV     BL,DH           ; GET ROW COUNT
+E607  EB ED                             JMP     C41             ; GO CLEAR THAT AREA
+E609                            SCROLL_UP       ENDP
+                                ;----- HANDLE COMMON SCROLL SET UP HERE
+E609                            SCROLL_POSITION PROC    NEAR
+E609  E8 E5C2 R                         CALL    POSITION        ; CONVERT TO REGEN POINTER
+E60C  03 06 004E R                      ADD     AX,CRT_START    ; OFFSET OF ACTIVE PAGE
+E610  8B F8                             MOV     DI,AX           ; TO ADDRESS FOR SCROLL
+E612  8B F0                             MOV     SI,AX           ; FROM ADDRESS FOR SCROLL
+E614  2B D1                             SUB     DX,CX           ; DX = #ROWS, #COLS IN BLOCK
+E616  FE C6                             INC     DH
+E618  FE C2                             INC     DL              ; INCREMENT FOR 0 ORIGIN
+E61A  32 ED                             XOR     CH,CH           ; SET HIGH BYTE OF COUNT TO ZERO
+E61C  8B 2E 004A R                      MOV     BP,CRT_COLS     ; GET NUMBER OF COLUMNS IN DISPLAY
+E620  03 ED                             ADD     BP,BP           ; TIMES 2 FOR ATTRIBUTE BYTE
+E622  8A C3                             MOV     AL,BL           ; GET LINE COUNT
+E624  F6 26 004A R                      MUL     BYTE PTR CRT_COLS ; DETERMINE OFFSET TO FROM
+E628  03 C0                             ADD     AX,AX           ; ADDRESS
+E62A  06                                PUSH    ES              ; ESTABLISH ADDRESSING TO REGEN
+                                                                 ; BUFFER
+                                                                 ; FOR BOTH POINTERS
+E62B  1F                                POP     DS
+E62C  0A DB                             OR      BL,BL           ; 0 SCROLL MEANS BLANK FIELD
+E62E  C3                                RET                     ; RETURN WITH FLAGS SET
+E62F                            SCROLL_POSITION ENDP
+                                ;------ MOVE_ROW
+E62F                            C45     PROC    NEAR
+E62F  8A CA                             MOV     CL,DL           ; GET # OF COLS TO MOVE
+E631  56                                PUSH    SI
+E632  57                                PUSH    DI              ; SAVE START ADDRESS
+E633  F3/ A5                            REP     MOVSW           ; MOVE THAT LINE ON SCREEN
+E635  5F                                POP     DI
+E636  5E                                POP     SI              ; RECOVER ADDRESSES
+E637  C3                                RET
+E638                            C45     ENDP
+                                ;------ CLEAR_ROW
+E638                            C46     PROC    NEAR
+E638  8A CA                             MOV     CL,DL           ; GET # COLUMNS TO CLEAR
+E63A  57                                PUSH    DI
+E63B  F3/ AB                            REP     STOSW           ; STORE THE FILL CHARACTER
+E63D  5F                                POP     DI
+E63E  C3                                RET
+E63F                            C46     ENDP
+                                ;----------------------------------------
+                                ; SCROLL_DOWN
+                                ; THIS ROUTINE MOVES THE CHARACTERS WITHIN A DEFINED
+                                ; BLOCK DOWN ON THE SCREEN, FILLING THE TOP LINES
+                                ; WITH A DEFINED CHARACTER
+                                ;
+                                ; INPUT
+                                ;
+                                ;   (AH) = CURRENT CRT MODE
+                                ;   (AL) = NUMBER OF LINES TO SCROLL
+                                ;   (CX) = UPPER LEFT CORNER OF REGION
+                                ;   (DX) = LOWER RIGHT CORNER OF REGION
+                                ;   (BH) = FILL CHARACTER
+                                ;   (DS) = DATA SEGMENT
+                                ;   (ES) = REGEN SEGMENT
+                                ;
+                                ; OUTPUT
+                                ;
+                                ;   NONE -- SCREEN IS SCROLLED
+                                ;----------------------------------------
+E63F                            SCROLL_DOWN     PROC    NEAR
+E63F  FD                                STD                     ; DIRECTION FOR SCROLL DOWN
+E640  8A D8                             MOV     BL,AL           ; LINE COUNT TO BL
+E642  80 FC 04                          CMP     AH,4            ; TEST FOR GRAPHICS
+E645  72 03                             JC      C47
+E647  E9 F305 R                         JMP     GRAPHICS_DOWN
+E64A  53                        C47:    PUSH    BX              ; SAVE ATTRIBUTE IN BH
+E64B  8B C2                             MOV     AX,DX           ; LOWER RIGHT CORNER
+E64D  E8 E609 R                         CALL    SCROLL_POSITION ; GET REGEN LOCATION
+E650  74 1F                             JZ      C51
+E652  2B F0                             SUB     SI,AX           ; SI IS FROM ADDRESS
+E654  8A E6                             MOV     AH,DH           ; GET TOTAL # ROWS
+E656  2A E3                             SUB     AH,BL           ; COUNT TO MOVE IN SCROLL
+; --------------------------------------------------------------------------------------------------
+; A-61
+; --------------------------------------------------------------------------------------------------
+E658  E8 E62F R                 C48:    CALL    C45             ; MOVE ONE ROW
+E65B  2B F5                             SUB     SI,BP
+E65D  2B FD                             SUB     DI,BP
+E65F  FE CC                             DEC     AH
+E661  75 F5                             JNZ     C48
+E663  58                        C49:    POP     AX              ; RECOVER ATTRIBUTE IN AH
+E664  B0 20                             MOV     AL,' '
+E666  E8 E638 R                 C50:    CALL    C46             ; CLEAR ONE ROW
+E669  2B FD                             SUB     DI,BP           ; GO TO NEXT ROW
+E66B  FE CB                             DEC     BL
+E66D  75 F7                             JNZ     C50
+E66F  EB 91                             JMP     C43             ; SCROLL_END
+E671  8A DE                     C51:    MOV     BL,DH
+E673  EB EE                             JMP     C49
+E675                            SCROLL_DOWN     ENDP
+
+                                ;----------------------------------------------------
+                                ; MODE_ALIVE
+                                ;       THIS ROUTINE READS 256 LOCATIONS IN MEMORY AS EVERY OTHER
+                                ;       LOCATION IN 512 LOCATIONS.  THIS IS TO INSURE THE DATA
+                                ;       INTEGRITY OF MEMORY DURING MODE CHANGES.
+                                ;----------------------------------------------------
+E675                            MODE_ALIVE      PROC    NEAR
+E675  50                                PUSH    AX              ;SAVE USED REGS
+E676  56                                PUSH    SI
+E677  51                                PUSH    CX
+E678  33 F6                             XOR     SI,SI
+E67A  B9 0100                           MOV     CX,256
+E67D  AC                        C52:    LODSB
+E67E  46                                INC     SI
+E67F  E2 FC                             LOOP    C52
+E681  59                                POP     CX
+E682  5E                                POP     SI
+E683  58                                POP     AX
+E684  C3                                RET
+E685                            MODE_ALIVE      ENDP
+
+                                ;----------------------------------------------------
+                                ; SET_PALLETTE
+                                ;       THIS ROUTINE WRITES THE PALETTE REGISTERS
+                                ;
+                                ;       INPUT
+                                ;
+                                ;               (AL) = 0        SET PALETTE REG
+                                ;                       (BH) =  VALUE TO SET
+                                ;                       (BL) =  PALETTE REG TO SET
+                                ;
+                                ;               (AL) = 1        SET BORDER COLOR REG
+                                ;                       (BH) =  VALUE TO SET
+                                ;
+                                ;               (AL) = 2        SET ALL PALETTE REGS AND BORDER REG
+                                ;       NOTE: REGISTERS ARE WRITE ONLY.
+                                ;----------------------------------------------------
+E685                            SET_PALLETTE    PROC    NEAR
+E685  50                                PUSH    AX
+E686  8B F4                             MOV     SI,SP
+E688  36: 8B 44 0C                      MOV     AX,SS:[SI+12]  ; GET SEG FROM STACK
+E68C  8E C0                             MOV     ES,AX
+E68E  8B F2                             MOV     SI,DX           ; OFFSET IN SI
+E690  BA 03DA                           MOV     DX,VGA_CTL      ; SET VGA CONTROL PORT
+E693  EC                        C53:    IN      AL,DX           ; GET VGA STATUS
+E694  24 08                             AND     AL,08H          ; IN VERTICAL RETRACE?
+E696  75 FB                             JNZ     C53             ; YES, WAIT FOR IT TO GO AWAY
+E698  EC                        C54:    IN      AL,DX           ; GET VGA STATUS
+E699  24 08                             AND     AL,08H          ; IN VERTICAL RETRACE?
+E69B  74 FB                             JZ      C54             ; NO, WAIT FOR IT
+E69D  58                                POP     AX
+E69E  0A C0                             OR      AL,AL           ; SET PALETTE REG?
+E6A0  74 0C                             JZ      C55             ; YES, GO DO IT
+E6A2  3C 02                             CMP     AL,2            ; SET ALL REGS?
+E6A4  74 17                             JE      C57
+E6A6  3C 01                             CMP     AL,1            ; SET BORDER COLOR REG?
+E6A8  75 2B                             JNE     C59             ; NO, DON'T DO ANYTHING
+E6AA  B0 02                             MOV     AL,2            ; SET BORDER COLOR REG NUMBER
+E6AC  EB 06                             JMP     SHORT C56
+E6AE  8A C3                     C55:    MOV     AL,BL           ; GET DESIRED REG NUMBER IN AL
+E6B0  24 0F                             AND     AL,0FH          ; STRIP UNUSED BITS
+E6B2  0C 10                             OR      AL,10H          ; MAKE INTO REAL REG NUMBER
+E6B4  EE                        C56:    OUT     DX,AL           ; SELECT REG
+E6B5  8A C7                             MOV     AL,BH           ; GET DATA IN AL
+E6B7  EE                                OUT     DX,AL           ; SET NEW DATA
+E6B8  32 C0                             XOR     AL,AL           ; SET REG 0 SO DISPLAY WORKS AGAIN
+E6BA  EE                                OUT     DX,AL
+E6BB  EB 18                             JMP     SHORT C59
+E6BD  B4 10                     C57:    MOV     AH,10H          ; AH IS REG COUNTER
+E6BF  8A C4                     C58:    MOV     AL,AH           ; REG ADDRESS IN AL
+E6C1  EE                                OUT     DX,AL           ; SELECT IT
+E6C2  26: 8A 04                         MOV     AL,BYTE PTR ES:[SI] ;GET DATA
+E6C5  EE                                OUT     DX,AL           ; PUT IN VGA REG
+E6C6  46                                INC     SI              ; NEXT DATA BYTE
+E6C7  FE C4                             INC     AH              ; NEXT REG
+E6C9  80 FC 20                          CMP     AH,20H          ; LAST PALETTE REG?
+E6CC  72 F1                             JB      C58             ; NO, DO NEXT ONE
+E6CE  B0 02                             MOV     AL,2            ; SET BORDER REG
+E6D0  EE                                OUT     DX,AL           ; SELECT IT
+E6D1  26: 8A 04                         MOV     AL,BYTE PTR ES:[SI] ; GET DATA
+E6D4  EE                                OUT     DX,AL           ; PUT IN VGA REG
+; --------------------------------------------------------------------------------------------------
+; A-62
+; --------------------------------------------------------------------------------------------------
+E6D5  E9 0F70 R                 C59:    JMP     VIDEO_RETURN    ; ALL DONE
+E6D8                            SET_PALLETTE   ENDP
+E6D8                            MFG_UP  PROC    NEAR
+E6D8  50                                PUSH    AX
+E6D9  1E                                PUSH    DS
+                                ASSUME  DS:XXDATA
+E6DA  B8 ---- R                         MOV     AX,XXDATA
+E6DD  8E D8                             MOV     DS,AX
+E6DF  A0 0005 R                         MOV     AL,MFG_TST      ; GET MFG CHECKPOINT
+E6E2  E6 10                             OUT     10H,AL          ; OUTPUT IT TO TESTER
+E6E4  FE C8                             DEC     AL              ; DROP IT BY 1 FOR THE NEXT TEST
+E6E6  A2 0005 R                         MOV     MFG_TST,AL
+                                ASSUME  DS:ABSO
+E6E9  1F                                POP     DS
+E6EA  58                                POP     AX
+E6EB  C3                                RET
+E6EC                            MFG_UP  ENDP
+                                ASSUME  CS:CODE,DS:DATA
+E6F2                                    ORG     0E6F2H
+E6F2  E9 0B1B R                         JMP     NEAR PTR BOOT_STRAP
+                                ;--------------------------------------------------------------------
+                                ; SUBROUTINE TO SET UP CONDITIONS FOR THE TESTING OF 8250 AND
+                                ; 8259 INTERRUPTS.  ENABLES MASKABLE EXTERNAL INTERRUPTS,
+                                ; CLEARS THE 8259 INTR RECEIVED FLAG BIT, AND ENABLES THE
+                                ; DEVICE'S 8259 INTR (WHICHEVER IS BEING TESTED).
+                                ; IT EXPECTS TO BE PASSED:
+                                ;       (DS) = ADDRESS OF SEGMENT WHERE INTR_FLAG IS DEFINED
+                                ;       (DI) = OFFSET OF THE INTERRUPT BIT MASK
+                                ; UPON RETURN:
+                                ;       INTR_FLAG BIT FOR THE DEVICE = 0
+                                ; NO REGISTERS ARE ALTERED.
+                                ;--------------------------------------------------------------------
+E6F5                            SUI     PROC    NEAR
+E6F5  50                                PUSH    AX
+E6F6  FB                                STI                     ; ENABLE MASKABLE EXTERNAL
+                                                                ;       INTERRUPTS
+E6F7  2E: 8A 25                         MOV     AH,CS:[DI]      ; GET INTERRUPT BIT MASK
+E6FA  20 26 0084 R                      AND     INTR_FLAG,AH    ; CLEAR 8259 INTERRUPT REC'D FLAG
+                                                                ;       BIT
+E6FE  E4 21                             IN      AL,INTA01       ; CURRENT INTERRUPTS
+E700  22 C4                             AND     AL,AH           ; ENABLE THIS INTERRUPT, TOO
+E702  E6 21                             OUT     INTA01,AL       ; WRITE TO 8259 (INTERRUPT
+                                                                ;       CONTROLLER)
+E704  58                                POP     AX
+E705  C3                                RET
+E706                            SUI     ENDP
+                                ;--------------------------------------------------------------------
+                                ; SUBROUTINE WHICH CHECKS IF A 8259 INTERRUPT IS GENERATED BY THE
+                                ; 8250 INTERRUPT.
+                                ; IT EXPECTS TO BE PASSED:
+                                ;       (DI) = OFFSET OF INTERRUPT BIT MASK
+                                ;       (DS) = ADDRESS OF SEGMENT WHERE INTR_FLAG IS DEFINED.
+                                ; IT RETURNS:
+                                ;       (CF) = 1 IF NO INTERRUPT IS GENERATED
+                                ;             0 IF THE INTERRUPT OCCURRED
+                                ;       (AL) = COMPLEMENT OF THE INTERRUPT MASK
+                                ; NO OTHER REGISTERS ARE ALTERED.
+                                ;--------------------------------------------------------------------
+E706                            C5059   PROC    NEAR
+E706  51                                PUSH    CX
+E707  2B C9                             SUB     CX,CX           ; SET PROGRAM LOOP COUNT
+E709  2E: 8A 05                         MOV     AL,CS:[DI]      ; GET INTERRUPT MASK
+E70C  34 FF                             XOR     AL,0FFH         ; COMPLEMENT MASK SO ONLY THE INTR
+                                                                ;       TEST BIT IS ON
+E70E  84 06 0084 R              AT25:   TEST    INTR_FLAG,AL    ; 8259 INTERRUPT OCCUR?
+E712  75 03                             JNE     AT27            ; YES - CONTINUE
+E714  E2 F8                             LOOP    AT25            ; WAIT SOME MORE
+E716  F9                                STC                     ; TIME'S UP - FAILED
+E717  59                        AT27:   POP     CX
+E718  C3                                RET
+E719                            C5059   ENDP
+                                ;--------------------------------------------------------------------
+                                ; SUBROUTINE TO WAIT FOR ALL ENABLED 8250 INTERRUPTS TO CLEAR (SO
+                                ;       NO INTRS WILL BE PENDING).  EACH INTERRUPT COULD TAKE UP TO
+                                ;       1 MILLISECOND TO CLEAR.  THE INTERRUPT IDENTIFICATION
+                                ;       REGISTER WILL BE CHECKED UNTIL THE INTERRUPT(S) IS CLEARED
+                                ;       OR A TIMEOUT OCCURS.
+                                ; EXPECTS TO BE PASSED:
+                                ;       (DX) = ADDRESS OF THE INTERRUPT ID REGISTER
+                                ;
+                                ; RETURNS:
+                                ;       (AL) = CONTENTS OF THE INTR ID REGISTER
+                                ;       (CF) = 1  IF INTERRUPTS ARE STILL PENDING
+                                ;             0  IF NO INTERRUPTS ARE PENDING (ALL CLEAR)
+                                ; NO OTHER REGISTERS ARE ALTERED.
+                                ;--------------------------------------------------------------------
+E719                            W8250C  PROC    NEAR
+E719  51                                PUSH    CX
+E71A  2B C9                             SUB     CX,CX
+E71C  EC                        AT28:   IN      AL,DX           ; READ INTR ID REG
+E71D  3C 01                             CMP     AL,1            ; INTERRUPTS STILL PENDING?
+E71F  74 05                             JE      AT29            ; NO - GOOD FINISH
+E721  E2 F9                             LOOP    AT28            ; KEEP TRYING
+E723  F9                                STC                     ; TIME'S UP - ERROR
+E724  EB 01                             JMP     SHORT AT30
+E726  F8                        AT29:   CLC
+E727  59                        AT30:   POP     CX
+E728  C3                                RET
+E729                            W8250C  ENDP
+; --------------------------------------------------------------------------------------------------
+; A-63
+; --------------------------------------------------------------------------------------------------
+                                ;-----INT 14--------------------------------------------------
+                                ;RS232_IO
+                                ;
+                                ;      THIS ROUTINE PROVIDES BYTE STREAM I/O TO THE COMMUNICATIONS
+                                ;      PORT ACCORDING TO THE PARAMETERS:
+                                ;            (AH)=0   INITIALIZE THE COMMUNICATIONS PORT
+                                ;                     (AL) HAS PARMS FOR INITIALIZATION
+                                ;
+                                ;
+                                ;---7-------6-------5-------4-------3-------2-------1-------0----
+                                ;-------- BAUD RATE ---:----PARITY----:--STOPBIT-::--WORD LENGTH--
+                                ;
+                                ; 000 - 110                  X0 - NONE           0 - 1       10 - 7 BITS
+                                ; 001 - 150                  01 - ODD            1 - 2       11 - 8 BITS
+                                ; 010 - 300                  11 - EVEN
+                                ; 011 - 600
+                                ; 100 - 1200
+                                ; 101 - 2400
+                                ; 110 - 4800
+                                ; 111 - 4800
+                                ;
+                                ;
+                                ;      ON RETURN, THE RS232 INTERRUPTS ARE DISABLED AND
+                                ;      CONDITIONS ARE SET AS IN CALL TO COMMO
+                                ;      STATUS (AH=3)
+                                ;
+                                ; (AH)=1   SEND THE CHARACTER IN (AL) OVER THE COMMO LINE
+                                ;          (AL) REGISTER IS PRESERVED
+                                ;          ON EXIT, BIT 7 OF AH IS SET IF THE ROUTINE WAS
+                                ;          UNABLE TO TRANSMIT THE BYTE OF DATA OVER
+                                ;          THE LINE. IF BIT 7 OF AH IS NOT SET, THE
+                                ;          REMAINDER OF AH IS SET AS IN A STATUS
+                                ;          REQUEST, REFLECTING THE CURRENT STATUS OF
+                                ;          THE LINE.
+                                ;
+                                ; (AH)=2   RECEIVE A CHARACTER IN (AL) FROM COMMO LINE BEFORE
+                                ;          RETURNING TO CALLER
+                                ;          ON EXIT, AH HAS THE CURRENT LINE STATUS, AS SET BY
+                                ;          THE STATUS ROUTINE, EXCEPT THAT THE ONLY
+                                ;          BITS LEFT ON, ARE THE ERROR BITS
+                                ;          (7,4,3,2,1). IN THIS CASE, THE TIME OUT BIT
+                                ;          INDICATES DATA SET READY WAS NOT RECEIVED.
+                                ;          THUS, AH IS NON ZERO ONLY WHEN AN ERROR
+                                ;          OCCURRED.(NOTE: IF THE TIME-OUT BIT IS SET,
+                                ;          OTHER BITS IN AH MAY NOT BE RELIABLE.)
+                                ;
+                                ; (AH)=3   RETURN THE COMMO PORT STATUS IN (AX)
+                                ;          AH CONTAINS THE LINE CONTROL STATUS
+                                ;               BIT 7 = TIME OUT
+                                ;               BIT 6 = TRANS SHIFT REGISTER EMPTY
+                                ;               BIT 5 = TRAN HOLDING REGISTER EMPTY
+                                ;               BIT 4 = BREAK DETECT
+                                ;               BIT 3 = FRAMING ERROR
+                                ;               BIT 2 = PARITY ERROR
+                                ;               BIT 1 = OVERRUN ERROR
+                                ;               BIT 0 = DATA READY
+                                ;          AL CONTAINS THE MODEM STATUS
+                                ;               BIT 7 = RECEIVED LINE SIGNAL DETECT
+                                ;               BIT 6 = RING INDICATOR
+                                ;               BIT 5 = DATA SET READY
+                                ;               BIT 4 = CLEAR TO SEND
+                                ;               BIT 3 = DELTA RECEIVE LINE SIGNAL DETECT
+                                ;               BIT 2 = TRAILING EDGE RING DETECTOR
+                                ;               BIT 1 = DELTA DATA SET READY
+                                ;               BIT 0 = DELTA CLEAR TO SEND
+                                ;          (DX) = PARAMETER INDICATING WHICH RS232 CARD (0,1 ALLOWED)
+                                ; DATA AREA RS232_BASE CONTAINS THE BASE ADDRESS OF THE 8250 ON THE
+                                ;      CARD. LOCATION 400H CONTAINS UP TO 4 RS232 ADDRESSES POSSIBLE
+                                ; DATA AREA RS232_TIM_OUT (BYTE) CONTAINS OUTER LOOP COUNT
+                                ;      VALUE FOR TIMEOUT (DEFAULT=1)
+                                ;OUTPUT
+                                ;      AX          MODIFIED ACCORDING TO PARMS OF CALL
+                                ;      ALL OTHERS UNCHANGED
+                                ;-------------------------------------------------------
+E729                            ASSUME  CS:CODE,DS:DATA
+E729                                    ORG     0E729H
+E729                            A1              LABEL   WORD
+E729  03F9                             DW      1017            ; 110 BAUD      ; TABLE OF INIT VALUE
+E72B  02EA                             DW      746             ; 150
+E72D  0175                             DW      373             ; 300
+E72F  00BA                             DW      186             ; 600
+E731  005D                             DW      93              ; 1200
+E733  002F                             DW      47              ; 2400
+E735  0017                             DW      23              ; 4800
+E737  0017                             DW      23              ; 4800
+E739                            RS232_IO        PROC    FAR
+                                ;------ VECTOR TO APPROPRIATE ROUTINE
+E739  FB                                STI                     ; INTERRUPTS BACK ON
+E73A  1E                                PUSH    DS              ; SAVE SEGMENT
+E73B  52                                PUSH    DX
+E73C  56                                PUSH    SI
+E73D  57                                PUSH    DI
+E73E  51                                PUSH    CX
+E73F  53                                PUSH    BX
+E740  8B F2                             MOV     SI,DX           ; RS232 VALUE TO SI
+E742  8B FA                             MOV     DI,DX           ; AND TO DI (FOR TIMEOUTS)
+E744  D1 E6                             SHL     SI,1            ; WORD OFFSET
+E746  E8 138B R                         CALL    DDS             ; POINT TO BIOS DATA SEGMENT
+E749  8B 94 0000 R                      MOV     DX,RS232_BASE[SI] ; GET BASE ADDRESS
+E74D  0B D2                             OR      DX,DX           ; TEST FOR 0 BASE ADDRESS
+E74F  74 13                             JZ      A3              ; RETURN
+E751  0A E4                             OR      AH,AH           ; TEST FOR (AH)=0
+E753  74 16                             JZ      A4              ; COMMUN INIT
+E755  FE CC                             DEC     AH              ; TEST FOR (AH)=1
+E757  74 47                             JZ      A5              ; SEND AL
+E759  FE CC                             DEC     AH              ; TEST FOR (AH)=2
+E75B  74 6C                             JZ      A12             ; RECEIVE INTO AL
+E75D  FE CC                             DEC     AH              ; TEST FOR (AH)=3
+E75F  75 03                             JNZ     A3
+E761  E9 E7F3 R                         JMP     A18             ; COMMUNICATION STATUS
+; --------------------------------------------------------------------------------------------------
+; A-64
+; --------------------------------------------------------------------------------------------------
+E764                            A3:                             ; RETURN FROM RS232
+E764  5B                                POP     BX
+E765  59                                POP     CX
+E766  5F                                POP     DI
+E767  5E                                POP     SI
+E768  5A                                POP     DX
+E769  1F                                POP     DS
+E76A  CF                                IRET                    ; RETURN TO CALLER, NO ACTION
+
+E76B  8A E0                     A4:     MOV     AH,AL           ; SAVE INIT PARMS IN AH
+E76D  83 C2 03                          ADD     DX,3            ; POINT TO 8250 CONTROL REGISTER
+E770  B0 80                             MOV     AL,80H
+E772  EE                                OUT     DX,AL           ; SET DLAB=1
+                                ;------ DETERMINE BAUD RATE DIVISOR
+E773  8A D4                             MOV     DL,AH           ; GET PARMS TO DL
+E775  B1 04                             MOV     CL,4
+E777  D2 C2                             ROL     DL,CL
+E779  81 E2 000E                        AND     DX,0EH          ; ISOLATE THEM
+E77D  BF E729 R                         MOV     DI,OFFSET A1    ; BASE OF TABLE
+E780  03 FA                             ADD     DI,DX           ; PUT INTO INDEX REGISTER
+E782  8B 94 0000 R                      MOV     DX,RS232_BASE[SI] ; POINT TO HIGH ORDER OF DIVISOR
+E786  42                                INC     DX
+E787  2E: 8A 45 01                      MOV     AL,CS:[DI]+1    ; GET HIGH ORDER OF DIVISOR
+E78B  EE                                OUT     DX,AL           ; SET MS OF DIV TO 0
+E78C  4A                                DEC     DX
+E78D  2E: 8A 05                         MOV     AL,CS:[DI]      ; GET LOW ORDER OF DIVISOR
+E790  EE                                OUT     DX,AL           ; SET LOW OF DIVISOR
+E791  83 C2 03                          ADD     DX,3
+E794  8A C4                             MOV     AL,AH           ; GET PARMS BACK
+E796  24 1F                             AND     AL,01FH         ; STRIP OFF THE BAUD BITS
+E798  EE                                OUT     DX,AL           ; LINE CONTROL TO 8 BITS
+E799  4A                                DEC     DX
+E79A  4A                                DEC     DX
+E79B  B0 00                             MOV     AL,0            ; INTERRUPT ENABLES ALL OFF
+E79D  EE                                OUT     DX,AL
+E79E  EB 53                             JMP     SHORT A18       ; COM_STATUS
+                                ;------ SEND CHARACTER IN (AL) OVER COMMO LINE
+E7A0                            A5:
+E7A0  50                                PUSH    AX              ; SAVE CHAR TO SEND
+E7A1  83 C2 04                          ADD     DX,4            ; MODEM CONTROL REGISTER
+E7A4  B0 03                             MOV     AL,3            ; DTR AND RTS
+E7A6  EE                                OUT     DX,AL
+E7A7  42                                INC     DX              ; MODEM STATUS REGISTER
+E7A8  42                                INC     DX
+E7A9  B7 30                             MOV     BH,30H          ; DATA SET READY & CLEAR TO SEND
+E7AB  E8 E802 R                         CALL    WAIT_FOR_STATUS ; ARE BOTH TRUE?
+E7AE  74 08                             JE      A9              ; YES, READY TO TRANSMIT CHAR
+E7B0  59                        A7:     POP     CX
+E7B1  8A C1                             MOV     AL,CL           ; RELOAD DATA BYTE
+E7B3  80 CC 80                  A8:     OR      AH,80H          ; INDICATE TIME OUT
+E7B6  EB AC                             JMP     A3              ; RETURN
+E7B8                            A9:                             ; CLEAR_TO_SEND
+E7B8  4A                                DEC     DX              ; LINE STATUS REGISTER
+E7B9  B7 20                             MOV     BH,20H          ; IS TRANSMITTER READY
+E7BB  E8 E802 R                         CALL    WAIT_FOR_STATUS ; TEST FOR TRANSMITTER READY
+E7BE  75 F0                             JNZ     A7              ; RETURN WITH TIME OUT SET
+E7C0  83 EA 05                          SUB     DX,5            ; DATA PORT
+E7C3  59                                POP     CX              ; RECOVER IN CX TEMPORARILY
+E7C4  8A C1                             MOV     AL,CL           ; MOVE CHAR TO AL FOR OUT, STATUS
+E7C6  EE                                OUT     DX,AL           ; OUTPUT CHARACTER
+E7C7  EB 9B                             JMP     A3              ; RETURN
+                                ;------ RECEIVE CHARACTER FROM COMMO LINE
+E7C9  83 C2 04                  A12:    ADD     DX,4            ; MODEM CONTROL REGISTER
+E7CC  B0 01                             MOV     AL,1            ; DATA TERMINAL READY
+E7CE  EE                                OUT     DX,AL
+E7CF  42                                INC     DX              ; MODEM STATUS REGISTER
+E7D0  42                                INC     DX
+E7D1  B7 20                             MOV     BH,20H          ; DATA SET READY
+E7D3  E8 E802 R                         CALL    WAIT_FOR_STATUS ; TEST FOR DSR
+E7D6  75 DB                             JNZ     A8              ; RETURN WITH ERROR
+E7D8  4A                                DEC     DX              ; LINE STATUS REGISTER
+E7D9  EC                        A16:    IN      AL,DX
+E7DA  A8 01                             TEST    AL,1            ; RECEIVE BUFFER FULL
+E7DC  75 09                             JNZ     A17             ; TEST FOR REC. BUFF. FULL
+E7DE  F6 06 0071 R 80                   TEST    BIOS_BREAK,80H  ; TEST FOR BREAK KEY
+E7E3  74 F4                             JZ      A16             ; LOOP IF NO BREAK KEY
+E7E5  EB CC                             JMP     A8              ; SET TIME OUT ERROR
+E7E7  24 1E                     A17:    AND     AL,00011110B    ; TEST FOR ERROR CONDITIONS ON RECV
+                                                                ; CHAR
+E7E9  8A E0                             MOV     AH,AL
+E7EB  8B 94 0000 R                      MOV     DX,RS232_BASE[SI] ; DATA PORT
+E7EF  EC                                IN      AL,DX           ; GET CHARACTER FROM LINE
+E7F0  E9 E764 R                         JMP     A3              ; RETURN
+                                ;------ COMMO PORT STATUS ROUTINE
+E7F3  8B 94 0000 R              A18:    MOV     DX,RS232_BASE[SI]
+E7F7  83 C2 05                          ADD     DX,5            ; CONTROL PORT
+E7FA  EC                                IN      AL,DX           ; GET LINE CONTROL STATUS
+E7FB  8A E0                             MOV     AH,AL           ; PUT IN AH FOR RETURN
+E7FD  42                                INC     DX              ; POINT TO MODEM STATUS REGISTER
+E7FE  EC                                IN      AL,DX           ; GET MODEM CONTROL STATUS
+E7FF  E9 E764 R                         JMP     A3              ; RETURN
+
+                                ;------------------------------------
+                                ; WAIT FOR STATUS ROUTINE
+                                ;ENTRY: BH=STATUS BIT(S) TO LOOK FOR,
+                                ;       DX=ADDR. OF STATUS REG
+                                ;EXIT:  ZERO FLAG ON = STATUS FOUND
+                                ;       ZERO FLAG OFF = TIMEOUT.
+                                ;       AH=LAST STATUS READ
+                                ;------------------------------------
+; --------------------------------------------------------------------------------------------------
+; A-65
+; --------------------------------------------------------------------------------------------------
+E802                            WAIT_FOR_STATUS PROC    NEAR
+E802  8A 9D 007C R                      MOV     BL,RS232_TIM_OUT[DI] ;LOAD OUTER LOOP COUNT
+E806  2B C9                     WFS0:   SUB     CX,CX
+E808  EC                        WFS1:   IN      AL,DX           ;GET STATUS
+E809  8A E0                             MOV     AH,AL           ;MOVE TO AH
+E80B  22 C7                             AND     AL,BH           ;ISOLATE BITS TO TEST
+E80D  3A C7                             CMP     AL,BH           ;EXACTLY = TO MASK
+E80F  74 08                             JE      WFS_END         ;RETURN WITH ZERO FLAG ON
+E811  E2 F5                             LOOP    WFS1            ;TRY AGAIN
+E813  FE CB                             DEC     BL
+E815  75 EF                             JNZ     WFS0
+E817  0A FF                             OR      BH,BH           ;SET ZERO FLAG OFF
+E819                            WFS_END:
+E819  C3                                RET
+E81A                            WAIT_FOR_STATUS ENDP
+E81A                            RS232_IO        ENDP
+                                ;---------------------------------------------------------------
+                                ; THIS ROUTINE WILL READ TIMER1.  THE VALUE READ IS RETURNED IN AX.
+                                ;---------------------------------------------------------------
+E81A                            READ_TIME       PROC    NEAR
+E81A  B0 40                             MOV     AL,40H          ;LATCH TIMER1
+E81C  E6 43                             OUT     TIM_CTL,AL
+E81E  50                                PUSH    AX              ;WAIT FOR 8253 TO INIT ITSELF
+E81F  58                                POP     AX
+E820  E4 41                             IN      AL,TIMER+1      ;READ LSB
+E822  8A E0                             MOV     AH,AL           ;SAVE IT IN HIGH BYTE
+E824  50                                PUSH    AX              ;WAIT FOR 8253 TO INIT ITSELF
+E825  58                                POP     AX
+E826  E4 41                             IN      AL,TIMER+1      ;READ MSB
+E828  86 C4                             XCHG    AL,AH           ;PUT BYTES IN PROPER ORDER
+E82A  C3                                RET
+E82B                            READ_TIME       ENDP
+E82E                                    ORG     0E82EH
+E82E  E9 13DD R                         JMP     NEAR PTR KEYBOARD_IO
+                                ;---------------------------------------------------------------
+                                ;ASYNCHRONOUS COMMUNICATIONS ADAPTER POWER ON DIAGNOSTIC TEST
+                                ;DESCRIPTION:
+                                ; THIS SUBROUTINE PERFORMS A THOROUGH CHECK OUT OF AN INS8250 LSI
+                                ; CHIP.
+                                ; THE TEST INCLUDES:
+                                ; 1) INITIALIZATION OF THE CHIP TO ASSUME ITS MASTER RESET STATE.
+                                ; 2) READING REGISTERS FOR KNOWN PERMANENT ZERO BITS.
+                                ; 3) TESTING THE INS8250 INTERRUPT SYSTEM AND THAT THE 8250
+                                ;    INTERRUPTS TRIGGER AN 8259 (INTERRUPT CONTROLLER) INTERRUPT.
+                                ; 4) PERFORMING THE LOOP BACK TEST:
+                                ;    A) TESTING WHAT WAS WRITTEN/READ AND THAT THE TRANSMITTER
+                                ;       HOLDING REG EMPTY BIT AND THE RECEIVER INTERRUPT WORK
+                                ;       PROPERLY.
+                                ;    B) TESTING IF CERTAIN BITS OF THE DATA SET CONTROL REGISTER
+                                ;       ARE 'LOOPED BACK' TO THOSE IN THE DATA SET STATUS
+                                ;       REGISTER.
+                                ;    C) TESTING THAT THE TRANSMITTER IS IDLE WHEN TRANSMISSION
+                                ;       TEST IS FINISHED.
+                                ; THIS SUBROUTINE EXPECTS TO HAVE THE FOLLOWING PARAMETER PASSED:
+                                ; (DX)= ADDRESS OF THE INS8250 CARD TO TEST.
+                                ; NOTE: THE ASSUMPTION HAS BEEN MADE THAT THE MODEM ADAPTER IS
+                                ;       ---- LOCATED AT 03F8H; THE SERIAL PRINTER AT 02F8H.
+                                ; IT RETURNS:
+                                ; (CF) = 1 IF ANY PORTION OF THE TEST FAILED
+                                ;     = 0 IF TEST PASSED
+                                ; (BX) = FAILURE KEY FOR ERROR MESSAGE (ONLY VALID IF TEST FAILED)
+                                ; (BH) = 23H  SERIAL PRINTER ADAPTER TEST FAILURE
+                                ;       = 24H  MODEM ADAPTER TEST FAILURE
+                                ; (BL) = 2  PERMANENT ZERO BITS IN INTERRUPT ENABLE REGISTER
+                                ;            WERE INCORRECT
+                                ;       3  PERMANENT ZERO BITS IN INTERRUPT IDENTIFICATION
+                                ;            REGISTER WERE INCORRECT
+                                ;       4  PERMANENT ZERO BITS IN DATA SET CONTROL REGISTER
+                                ;            WERE INCORRECT
+                                ;       5  PERMANENT ZERO BITS IN THE LINE STATUS REGISTER
+                                ;            WERE INCORRECT
+                                ;       6  RECEIVED DATA AVAILABLE INTERRUPT TEST FAILED
+                                ;            (THE INTERRUPT WAS NOT GENERATED)
+                                ;      16H RECEIVED DATA AVAILABLE INTERRUPT FAILED TO CLEAR
+                                ;       7  RESERVED FOR REPORTING THE TRANSMITTER HOLDING
+                                ;            REGISTER EMPTY INTERRUPT TEST FAILED
+                                ;            (NOT USED AT THIS TIME BECAUSE OF THE DIFFERENCES
+                                ;             BETWEEN THE 8250'S WHICH WILL BE USED.)
+                                ;      17H TRANSMITTER HOLDING REG EMPTY INTR FAILED TO CLEAR
+                                ;       8-B RECEIVER LINE STATUS INTERRUPT TEST FAILED
+                                ;            (THE INTERRUPT WAS NOT GENERATED)
+                                ;          8 - OVERRUN ERROR
+                                ;          9 - PARITY ERROR
+                                ;          A - FRAMING ERROR
+                                ;          B - BREAK INTERRUPT ERROR
+                                ;     18-1B RECEIVER LINE STATUS INTERRUPT FAILED TO CLEAR
+                                ;      C-F MODEM STATUS INTERRUPT TEST FAILED
+                                ;            (THE INTERRUPT WAS NOT GENERATED)
+                                ;          C - DELTA CLEAR TO SEND ERROR
+                                ;          D - DELTA DATA SET READY ERROR
+                                ;          E - TRAILING EDGE RING INDICATOR ERROR
+                                ;          F - DELTA RECEIVE LINE SIGNAL DETECT ERROR
+; --------------------------------------------------------------------------------------------------
+; A-66
+; --------------------------------------------------------------------------------------------------
+                                ;       1C-1F  MODEM STATUS INTERRUPT FAILED TO CLEAR
+                                ;       10H    AN 8250 INTERRUPT OCCURRED AS EXPECTED, BUT NO
+                                ;              8259 (INTR CONTROLLER) INTERRUPT WAS GENERATED
+                                ;       11H    DURING THE TRANSMISSION TEST, THE TRANSMITTER
+                                ;              HOLDING REGISTER WAS NOT EMPTY WHEN IT SHOULD
+                                ;              HAVE BEEN.
+                                ;       12H    DURING THE TRANSMISSION TEST, THE RECEIVED DATA
+                                ;              AVAILABLE INTERRUPT DIDN'T OCCUR.
+                                ;       13H    TRANSMISSION ERROR - THE CHARACTER RECEIVED
+                                ;              DURING LOOP MODE WAS NOT THE SAME AS THE ONE
+                                ;              TRANSMITTED
+                                ;       14H    DURING TRANSMISSION TEST, THE 4 DATA SET CONTROL
+                                ;              OUTPUTS WERE NOT THE SAME AS THE 4 DATA SET
+                                ;              CONTROL INPUTS.
+                                ;       15H    THE TRANSMITTER WAS NOT IDLE AFTER THE TRANS-
+                                ;              MISSION TEST COMPLETED.
+                                ;
+                                ;       ON EXIT:
+                                ;              - THE MODEM OR SERIAL PRINTER'S 8259 INTERRUPT (WHICHEVER
+                                ;                DEVICE WAS TESTED) IS DISABLED.
+                                ;              - THE 8250 IS IN THE MASTER RESET STATE.
+                                ;              ONLY THE DS REGISTER IS PRESERVED - ALL OTHERS ARE ALTERED.
+                                ;------------------------------------------------------------------
+= 0084                         WRAP            EQU     84H         ; LOOP BACK TRANSMISSION TEST
+                                ; INTERRUPT VECTOR ADDRESS
+                                ; (IN DIAGNOSTICS)
+
+                                ASSUME  CS:CODE,DS:DATA
+E831                            UART    PROC    NEAR
+E831  1E                                PUSH    DS
+E832  E4 21                             IN      AL,INTA01       ; CURRENT ENABLED INTERRUPTS
+E834  50                                PUSH    AX              ; SAVE FOR EXIT
+E835  0C 01                             OR      AL,00000001B    ; DISABLE TIMER INTR DURING THIS
+                                                                ; TEST
+E837  E6 21                             OUT     INTA01,AL
+E839  9C                                PUSHF                   ; SAVE CALLER'S FLAGS (SAVE INTR
+                                                                ; FLAG)
+E83A  52                                PUSH    DX              ; SAVE BASE ADDRESS OF ADAPTER CARD
+E83B  E8 138B R                         CALL    DDS             ; SET UP 'DATA' AS DATA SEGMENT
+                                                                ; ADDRESS
+                                ;---------------------------------------------------------------
+                                ;       INITIALIZE PORTS FOR MASTER RESET STATES AND TEST PERMANENT
+                                ;       ZERO DATA BITS FOR CERTAIN PORTS.
+                                ;---------------------------------------------------------------
+E83E  E8 0AC4 R                         CALL    I8250
+E841  73 03                             JNC     AT1             ; ALL OK
+E843  E9 E94B R                         JMP     AT14            ; A PORT'S ZERO BITS WERE NOT ZERO!
+                                ;---------------------------------------------------------------
+                                ;       INS8250 INTERRUPT SYSTEM TEST
+                                ;       ONLY THE INTERRUPT BEING TESTED WILL BE ENABLED.
+                                ;---------------------------------------------------------------
+                                ;       SET DI AND SI FOR CALLS TO 'SUI'
+E846  BF 0041 R                 AT1:    MOV     DI,OFFSET IMASKS ; BASE ADDRESS OF INTERRUPT MASKS
+E849  33 F6                             XOR     SI,SI           ; MODEM INDEX
+E84B  80 FE 02                          CMP     DH,2            ; OR SERIAL?
+E84E  75 02                             JNE     AT2             ; NO - IT'S MODEM
+E850  46                                INC     SI              ; IT'S SERIAL PRINTER
+E851  47                                INC     DI              ; SERIAL PRINTER 8259 MASK ADDRESS
+                                ;       RECEIVED DATA AVAILABLE INTERRUPT TEST
+E852  E8 E6F5 R                 AT2:    CALL    SUI             ; SET UP FOR INTERRUPTS
+E855  FE C3                             INC     BL              ; ERROR REPORTER (INIT. IN I8250)
+E857  42                                INC     DX              ; POINT TO INTERRUPT ENABLE
+                                                                ; REGISTER
+E858  B0 01                             MOV     AL,1            ; ENABLE RECEIVED DATA AVAILABLE
+                                                                ; INTR
+E85A  EE                                OUT     DX,AL
+E85B  53                                PUSH    BX              ; SAVE ERROR REPORTER
+E85C  83 C2 04                          ADD     DX,4            ; POINT TO LINE STATUS REGISTER
+E85F  B4 01                             MOV     AH,1            ; SET RECEIVER DATA READY BIT
+E861  BB 0400                           MOV     BX,0400H        ; INTR TO CHECK, INTR IDENTIFIER
+E864  B9 0003                           MOV     CX,3            ; INTERRUPT ID REG 'INDEX'
+E867  E8 0AF8 R                         CALL    ICT             ; PERFORM TEST FOR INTERRUPT
+E86A  5B                                POP     BX              ; RESTORE ERROR INDICATOR
+E86B  3C FF                             CMP     AL,0FFH         ; INTERRUPT ERROR OCCUR?
+E86D  74 36                             JE      AT4             ; YES
+E86F  E8 E706 R                         CALL    C5059           ; GENERATE 8259 INTERRUPT?
+E872  72 33                             JC      AT5             ; NO
+E874  4A                                DEC     DX
+E875  4A                                DEC     DX              ; RESET INTR BY READING RECR BUFR
+E876  EC                                IN      AL,DX           ; DON'T CARE ABOUT THE CONTENTS!
+E877  42                                INC     DX
+E878  42                                INC     DX              ; INTR ID REG
+E879  E8 E719 R                         CALL    W8250C          ; WAIT FOR INTR TO CLEAR
+E87C  73 03                             JNC     AT3             ; OK
+E87E  E9 E948 R                         JMP     AT13            ; DIDN'T CLEAR
+                                ;---------------------------------------------------------------
+                                ;       TRANSMITTER HOLDING REGISTER EMPTY INTERRUPT TEST
+                                ;       THIS TEST HAS BEEN MODIFIED BECAUSE THE DIFFERENT 8250'S
+                                ;       THAT MAY BE USED IN PRODUCING THIS PRODUCT DO NOT FUNCTION
+                                ;       THE SAME DURING THE STANDARD TEST OF THIS INTERRUPT
+                                ;       (STANDARD BEING THE SAME METHOD FOR TESTING THE OTHER
+                                ;       POSSIBLE 8250 INTERRUPTS).  IT IS STILL VALID FOR TESTING
+                                ;       IF AN 8259 INTERRUPT IS GENERATED IN RESPONSE TO THE 8250
+                                ;       INTERRUPT AND THAT THE 8250 INTERRUPT CLEARS AS IT SHOULD.
+                                ;
+                                ;       IF THE TRANSMITTER HOLDING REGISTER EMPTY INTERRUPT IS NOT
+                                ;       GENERATED WHEN THAT INTERRUPT IS ENABLED, IT IS NOT TREATED
+                                ;       AS AN ERROR.  HOWEVER, IF THE INTERRUPT IS GENERATED, IT
+                                ;       MUST GENERATE AN 8259 INTERRUPT AND CLEAR PROPERLY TO PASS
+                                ;       THIS TEST.
+                                ;---------------------------------------------------------------
+; --------------------------------------------------------------------------------------------------
+; A-67
+; --------------------------------------------------------------------------------------------------
+E881  E8 E6F5 R                 AT3:    CALL    SUI             ; SET UP FOR INTERRUPTS
+E884  FE C3                             INC     BL              ; BUMP ERROR REPORTER
+E886  4A                                DEC     DX              ; POINT TO INTERRUPT ENABLE
+                                                                ; REGISTER
+E887  B0 02                             MOV     AL,2            ; ENABLE XMITTER HOLDING REG EMPTY
+                                                                ; INTR
+
+E889  EE                                OUT     DX,AL
+E88A  EB 00                             JMP     $+2             ; I/O DELAY
+E88C  42                                INC     DX              ; INTR IDENTIFICATION REG
+E88D  2B C9                             SUB     CX,CX
+E88F  EC                        AT31:   IN      AL,DX           ; READ IT
+E890  3C 02                             CMP     AL,2            ; XMITTER HOLDING REG EMPTY INTR?
+E892  74 04                             JE      AT32            ; YES
+E894  E2 F9                             LOOP    AT31
+E896  EB 11                             JMP     SHORT AT6       ; THE INTR DIDN'T OCCUR - TRY NEXT
+                                                                ; TEST
+
+E898                            AT32:                           ; THE INTR DID OCCUR
+E898  E8 E706 R                         CALL    C5059           ; GENERATE 8259 INTERRUPT?
+E89B  72 0A                             JC      AT5             ; NO
+E89D  E8 E719 R                         CALL    W8250C          ; WAIT FOR THE INTERRUPT TO CLEAR
+                                                                ; (IT SHOULD ALREADY BE CLEAR
+                                                                ; BECAUSE 'ICT' READ THE INTR ID
+                                                                ; REG)
+E8A0  73 07                             JNC     AT6             ; IT CLEARED
+E8A2  E9 E948 R                         JMP     AT13            ; ERROR
+E8A5  EB 7E                     AT4:    JMP     SHORT AT11      ; AVOID OUT OF RANGE JUMPS
+E8A7  EB 7A                     AT5:    JMP     SHORT AT10
+
+                                ;-----------------------------------
+                                ; RECEIVER LINE STATUS INTERRUPT TEST
+                                ; THERE ARE 4 BITS WHICH COULD GENERATE THIS INTERRUPT.
+                                ; EACH ONE IS TESTED INDIVIDUALLY.
+                                ;   WHEN:  AH      TESTING
+                                ;           --      -------
+                                ;           2       OVERRUN
+                                ;           4       PARITY
+                                ;           8       FRAMING
+                                ;           10H     BREAK INTR
+                                ;-----------------------------------
+
+E8A9  4A                        AT6:    DEC     DX              ; POINT TO INTERRUPT ENABLE
+                                                                ; REGISTER
+E8AA  B0 04                             MOV     AL,4            ; ENABLE RECEIVER LINE STATUS INTR
+E8AC  EE                                OUT     DX,AL
+E8AD  83 C2 04                          ADD     DX,4            ; POINT TO LINE STATUS REGISTER
+E8B0  B9 0003                           MOV     CX,3            ; INTR ID REG 'INDEX'
+E8B3  BD 0004                           MOV     BP,4            ; LOOP COUNTER
+E8B6  B4 02                             MOV     AH,2            ; INITIAL BIT TO BE TESTED
+E8B8  E8 E6F5 R                 AT7:    CALL    SUI             ; SET UP FOR INTERRUPTS
+E8BB  FE C3                             INC     BL              ; BUMP ERROR REPORTER
+E8BD  53                                PUSH    BX              ; SAVE IT
+E8BE  BB 0601                           MOV     BX,0601H        ; INTR TO CHECK, INTR IDENTIFIER
+E8C1  E8 0AF8 R                         CALL    ICT             ; PERFORM TEST FOR INTERRUPT
+E8C4  5B                                POP     BX
+E8C5  24 1E                             AND     AL,00011110B    ; MASK OUT BITS THAT DON'T MATTER
+E8C7  3A C4                             CMP     AL,AH           ; TEST BIT ON?
+E8C9  75 5A                             JNE     AT11            ; NO
+E8CB  E8 E706 R                         CALL    C5059           ; GENERATE 8259 INTERRUPT?
+E8CE  72 53                             JC      AT10            ; NO
+E8D0  83 EA 03                          SUB     DX,3            ; INTR ID REG
+E8D3  E8 E719 R                         CALL    W8250C          ; WAIT FOR THE INTR TO CLEAR
+E8D6  72 70                             JC      AT13            ; IT DIDN'T
+E8D8  4D                                DEC     BP              ; ALL FOUR BITS TESTED?
+E8D9  74 07                             JE      AT8             ; YES - GO ON TO NEXT TEST
+E8DB  D0 E4                             SHL     AH,1            ; GET READY FOR NEXT BIT
+E8DD  83 C2 03                          ADD     DX,3            ; LINE STATUS REGISTER
+E8E0  EB D6                             JMP     AT7             ; TEST NEXT BIT
+
+                                ;-----------------------------------
+                                ; MODEM STATUS INTERRUPT TEST
+                                ; THERE ARE 4 BITS WHICH COULD GENERATE THIS INTERRUPT.
+                                ; THEY ARE TESTED INDIVIDUALLY.
+                                ;   WHEN:  AH      TESTING
+                                ;           --      -------
+                                ;           1       DELTA CLEAR TO SEND
+                                ;           2       DELTA DATA SET READY
+                                ;           4       TRAILING EDGE RING INDICATOR
+                                ;           8       DELTA RECEIVE LINE SIGNAL DETECT
+                                ;-----------------------------------
+
+E8E2  83 C2 04                  AT8:    ADD     DX,4            ; MODEM STATUS REGISTER
+E8E5  EC                                IN      AL,DX           ; CLEAR DELTA BITS THAT MAY BE ON
+                                                                ; BECAUSE OF DIFFERENCES AMONG
+                                                                ; 8250'S.
+E8E6  EB 00                             JMP     $+2             ; I/O DELAY
+E8E8  83 EA 05                          SUB     DX,5            ; INTERRUPT ENABLE REGISTER
+E8EB  B0 08                             MOV     AL,8            ; ENABLE MODEM STATUS INTERRUPT
+E8ED  EE                                OUT     DX,AL
+E8EE  83 C2 05                          ADD     DX,5            ; POINT TO MODEM STATUS REGISTER
+E8F1  B9 0004                           MOV     CX,4            ; INTR ID REG 'INDEX'
+E8F4  BD 0004                           MOV     BP,4            ; LOOP COUNTER
+E8F7  B4 01                             MOV     AH,1            ; INITIAL BIT TO BE TESTED
+E8F9  E8 E6F5 R                 AT9:    CALL    SUI             ; SET UP FOR INTERRUPTS
+E8FC  FE C3                             INC     BL              ; BUMP ERROR INDICATOR
+E8FE  53                                PUSH    BX              ; SAVE IT
+E8FF  BB 0001                           MOV     BX,0001H        ; INTR TO CHECK, INTR IDENTIFIER
+E902  E8 0AF8 R                         CALL    ICT             ; PERFORM TEST FOR INTERRUPT
+E905  5B                                POP     BX
+E906  24 0F                             AND     AL,00001111B    ; MASK OUT BITS THAT DON'T MATTER
+E908  3A C4                             CMP     AL,AH           ; TEST BIT ON?
+E90A  75 19                             JNE     AT11            ; NO
+E90C  E8 E706 R                         CALL    C5059           ; GENERATE 8259 INTERRUPT?
+E90F  72 12                             JC      AT10            ; NO
+E911  83 EA 04                          SUB     DX,4            ; INTR ID REG
+; --------------------------------------------------------------------------------------------------
+; A-68
+; --------------------------------------------------------------------------------------------------
+E914  E8 E719 R                         CALL    W8250C          ; WAIT FOR INTERRUPT TO CLEAR
+E917  72 2F                             JC      AT13            ; IT DIDN'T
+E919  4D                                DEC     BP
+E91A  74 0B                             JE      AT12            ; ALL FOUR BITS TESTED - GO ON
+E91C  D0 E4                             SHL     AH,1            ; GET READY FOR NEXT BIT
+E91E  83 C2 04                          ADD     DX,4            ; MODEM STATUS REGISTER
+E921  EB D6                             JMP     AT9             ; TEST NEXT BIT
+                                ;-----------------------------------------------------------
+                                ;       POSSIBLE 8259 INTERRUPT CONTROLLER PROBLEM
+                                ;-----------------------------------------------------------
+E923  B3 10                     AT10:   MOV     BL,10H          ; SET ERROR REPORTER
+E925  EB 24                     AT11:   JMP     SHORT AT14
+                                ;------------------------------------------------------------
+                                ;       SET 9600 BAUD RATE AND DEFINE DATA WORD AS HAVING 8
+                                ;       BITS/WORD, 2 STOP BITS, AND ODD PARITY.
+                                ;------------------------------------------------------------
+E927  42                        AT12:   INC     DX              ; LINE CONTROL REGISTER
+E928  E8 F085 R                         CALL    S8250
+                                ;-----------------------------------------------------------
+                                ;       SET DATA SET CONTROL WORD TO BE IN LOOP MODE
+                                ;-----------------------------------------------------------
+E92B  83 C2 04                          ADD     DX,4
+E92E  EC                                IN      AL,DX           ; CURRENT STATE
+E92F  EB 00                             JMP     $+2             ; I/O DELAY
+E931  0C 10                             OR      AL,00010000B    ; SET BIT 4 OF DATA SET CONTROL REG
+E933  EE                                OUT     DX,AL
+E934  EB 00                             JMP     $+2             ; I/O DELAY
+E936  42                                INC     DX
+E937  42                                INC     DX              ; MODEM STATUS REG
+E938  EC                                IN      AL,DX           ; CLEAR POSSIBLE MODEM STATUS
+                                                                ; INTERRUPT WHICH COULD BE CAUSED
+                                                                ; BY THE OUTPUT BITS BEING LOOPED
+                                                                ; TO THE INPUT BITS
+E939  EB 00                             JMP     $+2             ; I/O DELAY
+E93B  83 EA 06                          SUB     DX,6            ; RECEIVER BUFFER
+E93E  EC                                IN      AL,DX           ; DUMMY READ TO CLEAR DATA READY
+                                                                ; BIT IF IT WENT HIGH ON WRITE TO
+                                                                ; MCR
+                                ;-----------------------------------------------------------
+                                ;       PERFORM THE LOOP BACK TEST
+                                ;-----------------------------------------------------------
+E93F  42                                INC     DX              ; INTR ENBL REG
+E940  B0 00                             MOV     AL,0            ; SET FOR INTERNAL WRAP TEST
+E942  CD 84                             INT     WRAP            ; DO LOOP BACK TRANSMISSION TEST
+E944  B1 00                             MOV     CL,0            ; ASSUME NO ERRORS
+E946  73 05                             JNC     AT15            ; WRAP TEST PASSED
+E948  80 C3 10                  AT13:   ADD     BL,10H          ; ERROR INDICATOR
+                                ;-----------------------------------------------------------
+                                ;       AN ERROR WAS ENCOUNTERED SOMEWHERE DURING THE TEST
+                                ;-----------------------------------------------------------
+E94B  B1 01                     AT14:   MOV     CL,1            ; SET FAIL INDICATOR
+                                ;-----------------------------------------------------------
+                                ;       HOUSEKEEPING: RE-INITIALIZE THE 8250 PORTS (THE LOOP BIT
+                                ;                     WILL BE RESET), DISABLE THIS DEVICE INTERRUPT, SET UP
+                                ;                     REGISTER BH IF AN ERROR OCCURRED, AND SET OR RESET THE
+                                ;                     CARRY FLAG.
+                                ;-----------------------------------------------------------
+E94D  5A                        AT15:   POP     DX              ; GET BASE ADDRESS OF 8250 ADAPTER
+E94E  53                                PUSH    BX              ; SAVE ERROR CODE
+E94F  E8 0AC4 R                         CALL    I8250           ; RE-INITIALIZE 8250 PORTS
+E952  5B                                POP     BX
+E953  2E: 8A 25                         MOV     AH,CS:[DI]      ; GET DEVICE INTERRUPT MASK
+E956  20 26 0084 R                      AND     INTR_FLAG,AH    ; CLEAR DEVICE'S INTERRUPT FLAG BIT
+E95A  80 F4 FF                          XOR     AH,0FFH         ; FLIP BITS
+E95D  E4 21                             IN      AL,INTA01       ; GET CURRENT INTERRUPT PORT
+E95F  0A C4                             OR      AL,AH           ; DISABLE THIS DEVICE INTERRUPT
+E961  E6 21                             OUT     INTA01,AL
+E963  9D                                POPF                    ; RE-ESTABLISH CALLER'S INTERRUPT
+                                                                ; FLAG
+E964  0A C9                             OR      CL,CL           ; ANY ERRORS?
+E966  74 0C                             JE      AT17            ; NO
+E968  B7 24                             MOV     BH,24H          ; ASSUME MODEM ERROR
+E96A  80 FE 02                          CMP     DH,2            ; OR IS IT SERIAL?
+E96D  75 02                             JNE     AT16            ; IT'S MODEM
+E96F  B7 23                             MOV     BH,23H          ; IT'S SERIAL PRINTER
+E971  F9                        AT16:   STC                     ; SET CARRY FLAG TO INDICATE ERROR
+E972  EB 01                             JMP     SHORT AT18
+E974  F8                        AT17:   CLC                     ; RESET CARRY FLAG - NO ERRORS
+E975  58                        AT18:   POP     AX              ; RESTORE ENTRY ENABLED INTERRUPTS
+E976  E6 21                             OUT     INTA01,AL       ; DEVICE INTRS RE-ESTABLISHED
+E978  1F                                POP     DS              ; RESTORE REGISTER
+E979  C3                                RET
+E97A                            UART    ENDP
+E987                                    ORG     0E987H
+E987  E9 1561 R                         JMP     NEAR PTR KB_INT
+                                ;-----------------------------------------------------------
+                                ;       NEC_OUTPUT
+                                ;
+                                ;       THIS ROUTINE SENDS A BYTE TO THE NEC CONTROLLER
+                                ;       AFTER TESTING FOR CORRECT DIRECTION AND CONTROLLER READY
+                                ;       THIS ROUTINE WILL TIME OUT IF THE BYTE IS NOT ACCEPTED
+                                ;       WITHIN A REASONABLE AMOUNT OF TIME, SETTING THE DISKETTE
+                                ;       STATUS ON COMPLETION
+                                ;
+                                ;       INPUT
+                                ;               (AH)    BYTE TO BE OUTPUT
+                                ;
+                                ;       OUTPUT
+                                ;               CY = 0  SUCCESS
+                                ;               CY = 1  FAILURE -- DISKETTE STATUS UPDATED
+                                ;                       IF A FAILURE HAS OCCURRED, THE RETURN IS MADE ONE
+                                ;                       LEVEL HIGHER THAN THE CALLER OF NEC_OUTPUT
+                                ;                       THIS REMOVES THE REQUIREMENT OF TESTING AFTER EVERY
+                                ;                       CALL OF NEC_OUTPUT
+                                ;               (AL)    DESTROYED
+                                ;-----------------------------------------------------------
+; --------------------------------------------------------------------------------------------------
+; A-69
+; --------------------------------------------------------------------------------------------------
+E98A                            NEC_OUTPUT     PROC    NEAR
+E98A  52                                PUSH    DX              ; SAVE REGISTERS
+E98B  51                                PUSH    CX
+E98C  BA 00F4                          MOV     DX,NEC_STAT     ; STATUS PORT
+E98F  33 C9                             XOR     CX,CX           ; COUNT FOR TIME OUT
+E991  EC                        J23:    IN      AL,DX           ; GET STATUS
+E992  A8 40                             TEST    AL,D10          ; TEST DIRECTION BIT
+E994  74 0C                             JZ      J25             ; DIRECTION OK
+E996  E2 F9                             LOOP    J23
+E998                            J24:                            ; TIME_ERROR
+E998  80 0E 0041 R 80                   OR      DISKETTE_STATUS,TIME_OUT
+E99D  59                                POP     CX
+E99E  5A                                POP     DX              ; SET ERROR CODE AND RESTORE REGS
+E99F  58                                POP     AX              ; DISCARD THE RETURN ADDRESS
+E9A0  F9                                STC                     ; INDICATE ERROR TO CALLER
+E9A1  C3                                RET
+E9A2  33 C9                     J25:    XOR     CX,CX           ; RESET THE COUNT
+E9A4  EC                        J26:    IN      AL,DX           ; GET THE STATUS
+E9A5  A8 80                             TEST    AL,RQM          ; IS IT READY?
+E9A7  75 04                             JNZ     J27             ; YES, GO OUTPUT
+E9A9  E2 F9                             LOOP    J26             ; COUNT DOWN AND TRY AGAIN
+E9AB  EB EB                             JMP     J24             ; ERROR CONDITION
+E9AD                            J27:                            ; OUTPUT
+E9AD  8A C4                             MOV     AL,AH           ; GET BYTE TO OUTPUT
+E9AF  42                                INC     DX              ; DATA PORT IS 1 GREATER THAN
+                                                                ; STATUS PORT
+E9B0  EE                                OUT     DX,AL           ; OUTPUT THE BYTE
+E9B1  59                                POP     CX              ; RECOVER REGISTERS
+E9B2  5A                                POP     DX
+E9B3  C3                                RET                     ; CY = 0 FROM TEST INSTRUCTION
+E9B4                            NEC_OUTPUT     ENDP
+                                ;-----------------------------------------
+                                ; GET_PARM
+                                ; THIS ROUTINE FETCHES THE INDEXED POINTER FROM
+                                ; THE DISK_BASE BLOCK POINTED AT BY THE DATA
+                                ; VARIABLE DISK_POINTER
+                                ; A BYTE FROM THAT TABLE IS THEN MOVED INTO AH,
+                                ; THE INDEX OF THAT BYTE BEING THE PARM IN BX
+                                ; ENTRY --
+                                ;   BL = INDEX OF BYTE TO BE FETCHED * 2
+                                ;   IF THE LOW BIT OF BL IS ON, THE BYTE IS IMMEDIATELY
+                                ;     OUTPUT TO THE NEC CONTROLLER
+                                ; EXIT --
+                                ;   AH = THAT BYTE FROM BLOCK
+                                ;   BX = DESTROYED
+                                ;-----------------------------------------
+E9B4                            GET_PARM       PROC    NEAR
+E9B4  1E                                PUSH    DS              ; SAVE SEGMENT
+E9B5  56                                PUSH    SI              ; SAVE REGISTER
+E9B6  2B C0                             SUB     AX,AX           ; ZERO TO AX
+E9B8  32 FF                             XOR     BH,BH           ; ZERO BH
+E9BA  8E D8                             MOV     DS,AX
+                                ASSUME  DS:ABSO
+E9BC  C5 36 0078 R                      LDS     SI,DISK_POINTER ; POINT TO BLOCK
+E9C0  D1 EB                             SHR     BX,1            ; DIVIDE BX BY 2, AND SET FLAG FOR
+                                                                ; EXIT
+E9C2  9C                                PUSHF                   ; SAVE OUTPUT BIT
+E9C3  8A 20                             MOV     AH,[SI+BX]      ; GET THE BYTE
+E9C5  83 FB 01                          CMP     BX,1            ; IS THIS THE PARM WITH DMA
+                                                                ; INDICATOR
+E9C8  75 05                             JNZ     J27_1
+E9CA  80 CC 01                          OR      AH,1            ; TURN ON NO DMA BIT
+E9CD  EB 0C                             JMP     SHORT J27_2
+E9CF  83 FB 0A                  J27_1:  CMP     BX,10           ; MOTOR STARTUP DELAY?
+E9D2  75 07                             JNE     J27_2
+E9D4  80 FC 04                          CMP     AH,4            ; GREATER THAN OR EQUAL TO 1/2 SEC?
+E9D7  7D 02                             JGE     J27_2           ; YES, OKAY
+E9D9  B4 04                             MOV     AH,4            ; NO, FORCE 1/2 SECOND DELAY
+E9DB  9D                        J27_2:  POPF                    ; GET OUTPUT BIT
+E9DC  5E                                POP     SI              ; RESTORE REGISTER
+E9DD  1F                                POP     DS              ; RESTORE SEGMENT
+                                ASSUME  DS:DATA
+E9DE  72 AA                             JC      NEC_OUTPUT      ; IF FLAG SET, OUTPUT TO CONTROLLER
+E9E0  C3                                RET                     ; RETURN TO CALLER
+E9E1                            GET_PARM       ENDP
+                                ;-----------------------------------------
+                                ; BOUND_SETUP
+                                ; THIS ROUTINE SETS UP BUFFER ADDRESSING FOR READ/WRITE/VERIFY
+                                ; OPERATIONS.
+                                ; INPUT
+                                ;   ES HAS ORIGINAL BUFFER SEGMENT VALUE
+                                ;   BP POINTS AT BASE OF SAVED PARMETERS ON STACK
+                                ; OUTPUT
+                                ;   ES HAS SEGMENT WHICH WILL ALLOW 64K ACCESS.  THE
+                                ;   COMBINATION ES:DI AND DS:SI POINT TO THE BUFFER. THIS
+                                ;   CALCULATED ADDRESS WILL ALWAYS ACCESS 64K OF MEMORY.
+                                ;   BX DESTOYED
+                                ;-----------------------------------------
+; --------------------------------------------------------------------------------------------------
+; A-70
+; --------------------------------------------------------------------------------------------------
+E9E1                            BOUND_SETUP     PROC    NEAR
+E9E1  51                                PUSH    CX              ; SAVE REGISTERS
+E9E2  8B 5E 0C                          MOV     BX,[BP+12]      ; GET OFFSET OF BUFFER FROM STACK
+E9E5  53                                PUSH    BX              ; SAVE OFFSET TEMPORARILY
+E9E6  B1 04                             MOV     CL,4            ; SHIFT COUNT
+E9E8  D3 EB                             SHR     BX,CL           ; SHIFT OFFSET FOR NEW SEGMENT
+                                                                ; VALUE
+E9EA  8C C1                             MOV     CX,ES           ; PUT ES IN REGISTER SUITABLE FOR
+                                                                ; ADDING TO
+E9EC  03 CB                             ADD     CX,BX           ; GET NEW VALUE FOR ES
+E9EE  8E C1                             MOV     ES,CX           ; UPDATE THE ES REGISTER
+E9F0  5B                                POP     BX              ; RECOVER ORIGINAL OFFSET
+E9F1  81 E3 000F                        AND     BX,0000FH       ; NEW OFFSET
+E9F5  8B F3                             MOV     SI,BX           ; DS:SI POINT AT BUFFER
+E9F7  8B FB                             MOV     DI,BX           ; ES:DI POINT AT BUFFER
+E9F9  59                                POP     CX
+E9FA  C3                                RET
+E9FB                            BOUND_SETUP     ENDP
+                                ;---------------------------------------------------
+                                ; SEEK
+                                ;
+                                ;       THIS ROUTINE WILL MOVE THE HEAD ON THE NAMED DRIVE
+                                ;       TO THE NAMED TRACK.  IF THE DRIVE HAS NOT BEEN ACCESSED
+                                ;       SINCE THE DRIVE RESET COMMAND WAS ISSUED, THE DRIVE WILL BE
+                                ;       RECALIBRATED.
+                                ;
+                                ; INPUT
+                                ;
+                                ;       (DL) = DRIVE TO SEEK ON
+                                ;       (CH) = TRACK TO SEEK TO
+                                ;
+                                ; OUTPUT
+                                ;
+                                ;       CY = 0 SUCCESS
+                                ;       CY = 1 FAILURE -- DISKETTE_STATUS SET ACCORDINGLY
+                                ;       (AX) DESTROYED
+                                ;---------------------------------------------------
+E9FB                            SEEK            PROC    NEAR
+E9FB  56                                PUSH    SI              ; SAVE REGISTER
+E9FC  53                                PUSH    BX              ; SAVE REGISTER
+E9FD  51                                PUSH    CX
+E9FE  BE 0074 R                         MOV     SI,OFFSET TRACK0 ; BASE OF CURRENT HEAD POSITIONS
+EA01  B0 01                             MOV     AL,1            ; ESTABLISH MASK FOR RECAL
+EA03  8A CA                             MOV     CL,DL           ; USE DRIVE AS A SHIFT COUNT
+EA05  81 E1 00FF                        AND     CX,0FFH         ; MASK OFF HIGH BYTE
+EA09  03 F1                             ADD     SI,CX           ; POINT SI AT CORRECT DRIVE
+EA0B  D2 C0                             ROL     AL,CL           ; GET MASK FOR DRIVE
+                                ;------ SI CONTAINS OFFSET FOR CORRECT DRIVE, AL CONTAINS BIT MASK
+                                ;       IN POSITION 0,1 OR 2
+EA0D  59                                POP     CX              ; RESTORE PARAMETER REGISTER
+EA0E  BB EA66 R                         MOV     BX,OFFSET J32   ; SET UP ERROR RECOVERY ADDRESS
+EA11  53                                PUSH    BX              ; NEEDED FOR ROUTINE NEC_OUTPUT
+EA12  84 06 003E R                      TEST    SEEK_STATUS,AL  ; TEST DRIVE FOR RECAL
+EA16  75 1B                             JNZ     J28             ; NO_RECAL
+EA18  08 06 003E R                      OR      SEEK_STATUS,AL  ; TURN ON THE NO RECAL BIT IN FLAG
+EA1C  80 3C 00                          CMP     BYTE PTR[SI],0  ; LAST REFERENCED TRACK=0?
+EA1F  74 12                             JZ      J28             ; YES IGNORE RECAL
+EA21  B4 07                             MOV     AH,07H          ; RECALIBRATE COMMAND
+EA23  E8 E98A R                         CALL    NEC_OUTPUT
+EA26  8A E2                             MOV     AH,DL           ; RECAL REQUIRED ON DRIVE IN DL
+EA28  E8 E98A R                         CALL    NEC_OUTPUT      ; OUTPUT THE DRIVE NUMBER
+
+EA2B  E8 EA6F R                         CALL    CHK_STAT_2      ; GET THE STATUS OF RECALIBRATE
+EA2E  72 39                             JC      J32_2           ; SEEK_ERROR
+EA30  C6 04 00                          MOV     BYTE PTR[SI],0
+                                ;------ DRIVE IS IN SYNCH WITH CONTROLLER, SEEK TO TRACK
+EA33  8A 04                     J28:    MOV     AL,BYTE PTR[SI] ; GET THE PCN
+EA35  2A C5                             SUB     AL,CH           ; GET SEEK_WAIT VALUE
+EA37  74 2C                             JZ      J31_1           ; ALREADY ON CORRECT TRACK
+EA39  B4 0F                             MOV     AH,0FH          ; SEEK COMMAND TO NEC
+EA3B  E8 E98A R                         CALL    NEC_OUTPUT
+EA3E  8A E2                             MOV     AH,DL           ; DRIVE NUMBER
+EA40  E8 E98A R                         CALL    NEC_OUTPUT
+EA43  8A E5                             MOV     AH,CH           ; TRACK NUMBER
+EA45  E8 E98A R                         CALL    NEC_OUTPUT
+EA48  E8 EA6F R                         CALL    CHK_STAT_2      ; GET ENDING INTERRUPT AND SENSE
+                                                                ; STATUS
+
+                                ;------ WAIT FOR HEAD SETTLE
+EA4B  9C                                PUSHF                   ; SAVE STATUS FLAGS
+EA4C  51                                PUSH    CX              ; SAVE REGISTER
+EA4D  B3 12                             MOV     BL,18           ; HEAD SETTLE PARAMETER
+EA4F  E8 E9B4 R                         CALL    GET_PARM
+EA52  B9 0226                   J29:    MOV     CX,550          ; 1 MS LOOP
+EA55  0A E4                             OR      AH,AH           ; TEST FOR TIME EXPIRED
+EA57  74 06                             JZ      J31
+EA59  E2 FE                     J30:    LOOP    J30             ; DELAY FOR 1 MS
+EA5B  FE CC                             DEC     AH              ; DECREMENT THE COUNT
+EA5D  EB F3                             JMP     J29             ; DO IT SOME MORE
+EA5F  59                        J31:    POP     CX              ; RESTORE REGISTER
+EA60  9D                                POPF
+EA61  72 06                             JC      J32_2
+EA63  88 2C                             MOV     BYTE PTR[SI],CH
+EA65  5B                        J31_1:  POP     BX              ; GET RID OF DUMMY RETURN
+EA66                            J32:                            ; SEEK_ERROR
+EA66  5B                                POP     BX              ; RESTORE REGISTER
+EA67  5E                                POP     SI              ; UPDATE CORRECT
+EA68  C3                                RET                     ; RETURN TO CALLER
+EA69  C6 04 FF                  J32_2:  MOV     BYTE PTR[SI],0FFH ; UNKNOWN STATUS ABOUT SEEK
+                                                                ; OPERATION
+EA6C  5B                                POP     BX              ; GET RID OF DUMMY RETURN
+EA6D  EB F7                             JMP     SHORT J32
+EA6F                            SEEK            ENDP
