@@ -26,4 +26,8 @@ py exe2bin.py pcjrbios.exe pcjrbios.bin --checksum
 
 If you want to split the ROM into two 32K images for burning, you can add the `--split` argument.
 
+## License
 
+I make no license claim to IBM's original work, which remains (C)1983 IBM Corporation. 
+
+The Python scripts are released into public domain via CC0.
