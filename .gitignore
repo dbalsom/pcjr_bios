@@ -1,0 +1,7 @@
+*.EXE
+*.OBJ
+*.DOC
+
+/ocr
+/ocr2
+*.png
