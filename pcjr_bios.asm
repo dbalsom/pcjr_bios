@@ -1190,8 +1190,8 @@
 03E3  E6 41                             OUT     TIMER+1,AL      ; SEND 2ND BYTE TO TIMER TO START
 03E5  2B DB                             SUB     BX,BX           ; INIT. ENABLE COUNTER
                                 ; WAIT FOR VERTICAL TO GO AWAY
-03E7  33 C9                     Q4:     XOR     CX,CX
-03E9  EC                                IN      AL,DX           ; GET STATUS
+03E7  33 C9                             XOR     CX,CX
+03E9  EC                        Q4:     IN      AL,DX           ; GET STATUS
 03EA  A8 08                             TEST    AL,00001000B    ; VERTICAL STILL THERE?
 03EC  74 06                             JZ      Q5              ; CONTINUE IF IT'S GONE
 03EE  E2 F9                             LOOP    Q4              ; KEEP LOOKING TILL COUNT EXHAUSTED
@@ -1241,7 +1241,8 @@
 042D  EB 74                     Q115:   JMP     SHORT Q22       ; WRONG # ENABLES = ERROR 0905
 042F  E4 41                     Q12:    IN      AL,TIMER+1      ; GET TIMER VALUE LOW
 0431  8A E0                             MOV     AH,AL           ; SAVE IT
-0433  90                                                        ;
+                                ; IBM listing has a bare 90 byte here.  Emit it as NOP.
+0433  90                                NOP                     ;
 0434  E4 41                             IN      AL,TIMER+1      ; GET TIMER HIGH
 0436  86 E0                             XCHG    AH,AL           ;
 0438  FB                                STI                     ; INTERRUPTS BACK ON
@@ -1392,8 +1393,8 @@
 051A  5B                                POP     BX
 051B  BA 2000                           MOV     DX,2000H        ; SET POINTER TO JUST ABOVE 128K
 051E  2B FF                             SUB     DI,DI           ; SET DI TO POINT TO BEGINNING
-0520  B9 AA55                   Q26:    MOV     CX,0AA55H       ; LOAD DATA PATTERN
-0523  8E C2                             MOV     ES,DX           ; SET SEGMENT TO POINT TO MEMORY
+0520  B9 AA55                           MOV     CX,0AA55H       ; LOAD DATA PATTERN
+0523  8E C2                     Q26:    MOV     ES,DX           ; SET SEGMENT TO POINT TO MEMORY
 0525  26: 89 0D                         MOV     ES:[DI],CX      ; SPACE
 0528  B0 0F                             MOV     AL,0FH          ; SET DATA PATTERN TO MEMORY
 052A  26: 8B 05                         MOV     AX,ES:[DI]      ; SET AL TO ODD VALUE
@@ -1502,8 +1503,8 @@
 05EA  E8 18BA R                         CALL    PRT_HEX
 05ED  E2 FA                             LOOP    Q37
 05EF  B9 0003                           MOV     CX,3
-05F2  BE 0025 R                 Q38:    MOV     SI,OFFSET F3B   ; PRINT " KB"
-05F5  2E: 8A 04                         MOV     AL,CS:[SI]
+05F2  BE 0025 R                         MOV     SI,OFFSET F3B   ; PRINT " KB"
+05F5  2E: 8A 04                 Q38:    MOV     AL,CS:[SI]
 05F8  46                                INC     SI
 05F9  E8 18BA R                         CALL    PRT_HEX
 05FC  E2 F7                             LOOP    Q38
@@ -1521,7 +1522,7 @@
 0604  81 FA 2000                        CMP     DX,2000H        ; ABOVE 128K (THE SIMPLE CASE)
 0608  7C 0E                             JL      Q40             ; GO DO ODD/EVEN-LESS THAN 128K
 060A  8A D9                             MOV     BL,CL           ; FORM ERROR BITS ("XX")
-060C  0A DD                             OR      BL,DH
+060C  0A DD                             OR      BL,CH
 060E  B1 04                             MOV     CL,4            ;
 0610  D2 EE                             SHR     DH,CL           ; ROTATE MOST SIGNIFICANT
                                                                 ; NIBBLE OF SEGMENT
@@ -1542,7 +1543,7 @@
 0629  8A D9                             MOV     BL,CL
 062B  74 0B                             JE      Q42
 062D  FE C7                             INC     BH              ; MAKE INTO 0BXX ERR
-062F  0A DD                             OR      BL,DH           ; MOVE AND COMBINE ERROR BITS
+062F  0A DD                             OR      BL,CH           ; MOVE AND COMBINE ERROR BITS
 0631  80 FC 01                          CMP     AH,1            ; ODD BYTE ERROR
 0634  74 02                             JE      Q42
 0636  FE C7                             INC     BH              ; MUST HAVE BEEN BOTH
@@ -1657,8 +1658,8 @@
 06F2  24 40                             AND     AL,01000000B
 06F4  74 09                             JZ      F6_X            ; EXIT LOOP IF DATA WENT LOW
 06F6  E2 F8                             LOOP    F6_2            ;
-06F8  B3 01                     F6_1:   MOV     BL,01H          ; SET KEYBOARD DATA STUCK HIGH ERR
-06FA  B7 21                             MOV     BH,21H          ; POST ERROR "21XX"
+06F8  B3 01                             MOV     BL,01H          ; SET KEYBOARD DATA STUCK HIGH ERR
+06FA  B7 21                     F6_1:   MOV     BH,21H          ; POST ERROR "21XX"
 06FC  E9 065F R                         JMP     F6              ;
 06FF  B0 00                     F6_X:   MOV     AL,00H          ; DISABLE FEEDBACK CKT
 0701  E6 A0                             OUT     0A0H,AL         ;
@@ -1721,8 +1722,8 @@
 0757  24 E5                             AND     AL,11100101B    ; SET CASSETTE MOTOR ON
 0759  E6 61                             OUT     PORT_B,AL       ;
 075B  33 C9                             XOR     CX,CX           ;
-075D  E2 FE                             LOOP    F91             ; WAIT FOR RELAY TO SETTLE
-075F  E8 F96F R                 F91:    CALL    READ_HALF_BIT
+075D  E2 FE                     F91:    LOOP    F91             ; WAIT FOR RELAY TO SETTLE
+075F  E8 F96F R                         CALL    READ_HALF_BIT
 0762  E8 F96F R                         CALL    READ_HALF_BIT
 0765  8A C2                             MOV     AL,DL           ; DROP RELAY
 0767  E6 61                             OUT     PORT_B,AL
@@ -2608,7 +2609,7 @@
       07 05 01 FB
 0C65  02 07 01 0B 01 06                 DB      2,7,1,11,1,6,5,6,1,-5
       05 06 01 FB
-0C6F  04 03 05 03 03 03                 DB      4,3,5,3,3,3,5,3,5,3,-5
+0C6F  04 03 05 03 03 03                 DB      4,3,5,3,3,3,3,5,3,5,3,-5
       03 05 03 05 03 FB
 0C7B  04 03 05 03 03 03                 DB      4,3,5,3,3,3,3,6,1,6,3,-5
       03 03 05 03 03 03
@@ -2620,7 +2621,7 @@
       03 FB
 0C9F  04 03 05 03 03 03                 DB      4,3,5,3,3,3,3,13,3,-5
       03 00 03 FB
-0CA9  04 03 05 03 03 03                 DB      4,3,5,3,3,3,3,1,5,1,3,3,-5
+0CA9  04 03 05 03 03 03                 DB      4,3,5,3,3,3,3,3,1,5,1,3,3,-5
       03 03 01 05 01 03
       03 FB
 0CB7  02 07 01 0B 01 05                 DB      2,7,1,11,1,5,2,3,2,5,1,-5
@@ -3138,8 +3139,8 @@
 0E7D  EE                                OUT     DX,AL           ; SELECT REG
 0E7E  2E: 8A 07                         MOV     AL,CS:[BX]      ; GET TABLE VALUE
 0E81  EE                                OUT     DX,AL           ; PUT IN VGA REG
-0E82  43                                INC     BX              ; NEXT IN TABLE
-0E83  FE C4                     C14:    INC     AH              ; NEXT REG
+0E82  43                        C14:    INC     BX              ; NEXT IN TABLE
+0E83  FE C4                             INC     AH              ; NEXT REG
 0E85  E2 F4                             LOOP    C13             ; DO ENTIRE ENTRY
                                 ;---- SET UP CRT AND CPU PAGE REGS ACCORDING TO MODE & MEMORY SIZE
 0E87  BA 03DF                           MOV     DX,PAGREG       ; SET IO ADDRESS OF PAGREG
@@ -3824,8 +3825,8 @@
 1263  75 07                             JNE     KB10_1          ; NOT A NUMKEY, TRANSLATE IT
 1265  F6 06 0017 R 08                   TEST    KB_FLAG,ALT_SHIFT ; ALT HELD DOWN ALSO?
 126A  74 D8                             JZ      KB8             ; TREAT AS ILLEGAL COMBINATION
-126C  B9 106A R                         MOV     CX, OFFSET KB0 + 1 ; GET OFFSET TO TABLE
-126F  2B F9                     KB10_1: SUB     DI, CX          ; UPDATE INDEX TO NEW SCAN CODE
+126C  B9 106A R                 KB10_1: MOV     CX, OFFSET KB0 + 1 ; GET OFFSET TO TABLE
+126F  2B F9                             SUB     DI, CX          ; UPDATE INDEX TO NEW SCAN CODE
 1271  2E: 8A 85 1075 R                  MOV     AL, CS:KB1[DI]  ; MOV NEW SCAN CODE INTO REGISTER
                                 ;----TRANSLATED CODE IN AL OR AN OFFSET TO THE TABLE "SCAN"
 1276  F6 C4 80                  KB12:   TEST    AH,BREAK_BIT    ; IS THIS A BREAK CHAR?
@@ -4227,14 +4228,14 @@
       0D FF 61 73 64 66
       67 68 6A 6B 6C 3B
       27
-14E7  60 FF 5C 7A 78 63                 DB      60H,-1,5CH,'zxcvbnm,./',-1,'*',-1,' ',' '
+14E7  60 FF 5C 7A 78 63                 DB      60H,-1,5CH,'zxcvbnm,./',-1,'*',-1,' '
       76 62 6E 6D 2C 2E
       2F FF 2A FF 20
 14F8  FF                                DB      -1
 
 14F9                            ;------- UC TABLE
 14F9                            K11     LABEL   BYTE
-14F9  1B 21 40 23 24 25                 DB      27,'!@#$%',37,05EH,'&*()_+',08H,0
+14F9  1B 21 40 23 24 25                 DB      27,'!@#$%',05EH,'&*()_+',08H,0
       5E 26 2A 28 29 5F
       2B 08 00
 1508  51 57 45 52 54 59                 DB      'QWERTYUIOP{}',0DH,-1,'ASDFGHJKL:"'
@@ -4242,7 +4243,7 @@
       0D FF 41 53 44 46
       47 48 4A 4B 4C 3A
       22
-1521  7E FF 7C 5A 58 43                 DB      07EH,-1,'ZXCVBNM<>?',-1,0,-1,' ', -1
+1521  7E FF 7C 5A 58 43                 DB      07EH,-1,'|ZXCVBNM<>?',-1,0,-1,' ', -1
       56 42 4E 4D 3C 3E
       3F FF 00 FF 20 FF
 ; --------------------------------------------------------------------------------------------------
@@ -4261,7 +4262,7 @@
 
                                 ;-------   NUM STATE TABLE
 1547                            K14     LABEL   BYTE
-1547  37 38 39 20 34 35                 DB      '789-456+1230. '
+1547  37 38 39 20 34 35                 DB      '789-456+1230.'
       36 2B 31 32 33 30
       2E
 
@@ -4637,14 +4638,14 @@
 1801  74 0F                             JZ      K60             ; IF NOT SHIFT, CONVERT LOWER TO
                                                                 ; UPPER
                                 ;-------  CONVERT ANY UPPER CASE TO LOWER CASE
-1803  3C 41                     K59:    CMP     AL,'A'          ; FIND OUT IF ALPHABETIC
+1803  3C 41                             CMP     AL,'A'          ; FIND OUT IF ALPHABETIC
 1805  72 15                             JB      K61             ; NOT_CAPS_STATE
 1807  3C 5A                             CMP     AL,'Z'
 1809  77 11                             JA      K61             ; NOT_CAPS_STATE
 180B  04 20                             ADD     AL,'a'-'A'      ; CONVERT TO LOWER CASE
 180D  EB 0D                             JMP     SHORT K61       ; NOT_CAPS_STATE
                                                                 ; NEAR-INTERRUPT-RETURN
-180F  E9 164A R                         JMP     K26             ; INTERRUPT_RETURN
+180F  E9 164A R                 K59:    JMP     K26             ; INTERRUPT_RETURN
                                 ;-------  CONVERT ANY LOWER CASE TO UPPER CASE
 1812  3C 61                     K60:    CMP     AL,'a'          ; LOWER-TO-UPPER
 1814  72 06                             JB      K61             ; FIND OUT IF ALPHABETIC
@@ -5858,6 +5859,19 @@
 
                                 ; LIST
                                 ASSUME  CS:CODE,DS:DATA
+                                ;-------------------------------------------------------
+                                ; Opaque ROM blobs for Diagnostics and Basic.
+                                ; These were omitted from the original source via a
+                                ; NOLIST directive.
+                                ;-------------------------------------------------------
+2000                                    ORG     2000H
+2000                            DIAG_ROM        LABEL   BYTE
+                                        INCLUDE DIAGROM.INC
+
+6000                                    ORG     6000H
+6000                            BASIC_ROM       LABEL   BYTE
+                                        INCLUDE BASICROM.INC
+
 E000                                    ORG     0E000H
 E000  31 35 30 34 30 33                 DB      '1504037 COPR. IBM 1981,1983' ; COPYRIGHT NOTICE
       37 20 43 4F 50 52
@@ -6007,8 +6021,8 @@ E146  CC CC 78 FC 30 FC                 DB      0CCH, 0CCH, 078H, 0FCH, 030H, 0F
       30 30 
 E14E  F8 CC CC FA C6 CF                 DB      0F8H, 0CCH, 0CCH, 0FAH, 0C6H, 0CFH, 0C6H, 0C7H ; D_9E
       C6 C7 
-E156  0E 1B 18 3C 18 18                 DB      00EH, 01BH, 018H, 03CH, 018H, 018H, 0DBH, 070H ; D_9F
-      DB 70 
+E156  0E 1B 18 3C 18 18                 DB      00EH, 01BH, 018H, 03CH, 018H, 018H, 0D8H, 070H ; D_9F
+      D8 70 
  
 E15E  1C 00 78 0C 7C CC                 DB      01CH, 000H, 078H, 00CH, 07CH, 0CCH, 07EH, 000H ; D_A0
       7E 00 
@@ -6028,8 +6042,8 @@ E196  38 6C 6C 38 00 7C                 DB      038H, 06CH, 06CH, 038H, 000H, 07
       00 00 
 E19E  30 00 30 60 C0 CC                 DB      030H, 000H, 030H, 060H, 0C0H, 0CCH, 078H, 000H ; D_A8
       78 00 
-E1A6  00 00 00 FC C0 C0                 DB      000H, 000H, 000H, 0FCH, 0C0H, 0C0H, 0C0H, 000H ; D_A9
-      C0 00 
+E1A6  00 00 00 FC C0 C0                 DB      000H, 000H, 000H, 0FCH, 0C0H, 0C0H, 000H, 000H ; D_A9
+      00 00 
 E1AE  00 00 00 FC 0C 0C                 DB      000H, 000H, 000H, 0FCH, 00CH, 00CH, 000H, 000H ; D_AA
       00 00 
 E1B6  C3 C6 CC DE 33 66                 DB      0C3H, 0C6H, 0CCH, 0DEH, 033H, 066H, 0CCH, 00FH ; D_AB
@@ -6187,8 +6201,8 @@ E3F6  18 30 60 30 18 00                 DB      018H, 030H, 060H, 030H, 018H, 00
       FC 00 
 E3FE  0E 1B 1B 18 18 18                 DB      00EH, 01BH, 01BH, 018H, 018H, 018H, 018H, 018H ; D_F4
       18 18 
-E406  18 18 18 18 18 DB                 DB      018H, 018H, 018H, 018H, 018H, 0DBH, 0DBH, 070H ; D_F5
-      DB 70 
+E406  18 18 18 18 18 D8                 DB      018H, 018H, 018H, 018H, 018H, 0D8H, 0D8H, 070H ; D_F5
+      D8 70 
 E40E  30 30 00 FC 00 30                 DB      030H, 030H, 000H, 0FCH, 000H, 030H, 030H, 000H ; D_F6
       30 00 
 E416  00 76 DC 00 76 DC                 DB      000H, 076H, 0DCH, 000H, 076H, 0DCH, 000H, 000H ; D_F7
@@ -6492,8 +6506,8 @@ E585  83 C1 04                          ADD     CX,M0072L       ; POINT TO NEXT 
 E588  8B D9                     C34:    MOV     BX,CX           ; TABLE ADDRESS IN BX
 E58A  43                                INC     BX              ; SKIP OVER BACKGROUND COLOR
 E58B  B9 0003                           MOV     CX,M0072L-1     ; SET NUMBER OF REGS TO FILL
-E58E  B4 11                     C35:    MOV     AH,11H          ; AH IS REGISTER COUNTER
-E590  8A C4                             MOV     AL,AH           ; GET REG NUMBER
+E58E  B4 11                             MOV     AH,11H          ; AH IS REGISTER COUNTER
+E590  8A C4                     C35:    MOV     AL,AH           ; GET REG NUMBER
 E592  EE                                OUT     DX,AL           ; SELECT IT
 E593  2E: 8A 07                         MOV     AL,CS:[BX]      ; GET DATA
 E596  EE                                OUT     DX,AL           ; SET IT
@@ -8322,7 +8336,7 @@ EDCC  53                                PUSH    BX              ; SAVE INDEX TO 
 ; --------------------------------------------------------------------------------------------------
 EDCD  FC                        J16:    CLD                     ; FORWARD DIRECTION
                                 ;------- START TIMER1 WITH INITIAL VALUE OF FFFF
-EDCE  B0 70                             MOV     AL,01100000B    ; SELECT TIMER1,LSB-MSB, MODE 0,
+EDCE  B0 70                             MOV     AL,01110000B    ; SELECT TIMER1,LSB-MSB, MODE 0,
 EDD0  E6 43                             OUT     TIM_CTL,AL      ; BINARY COUNTER
 EDD2  50                                PUSH    AX              ; INITIALIZE THE COUNTER
 EDD3  58                                POP     AX              ; ALLOW ENOUGH TIME FOR THE 8253 TO
@@ -9879,8 +9893,8 @@ F659  80 E3 03                          AND     BL,3            ; ISOLATE THE CO
 F65C  8A C3                             MOV     AL,BL           ; COPY TO AL
 F65E  51                                PUSH    CX              ; SAVE REGISTER
 F65F  B9 0003                           MOV     CX,3            ; NUMBER OF TIMES TO DO THIS
-F662  D0 E0                             SAL     AL,1
-F664  D0 E0                     R41:    SAL     AL,1            ; LEFT SHIFT BY 2
+F662  D0 E0                     R41:    SAL     AL,1
+F664  D0 E0                             SAL     AL,1            ; LEFT SHIFT BY 2
 F666  0A D8                             OR      BL,AL           ; ANOTHER COLOR VERSION INTO BL
 F668  E2 F8                             LOOP    R41             ; FILL ALL OF BL
 F66A  8A FB                             MOV     BH,BL           ; FILL UPPER PORTION
@@ -11099,7 +11113,7 @@ FE16  00 00 CC CC CC CC                 DB      000H,000H,0CCH,0CCH,0CCH,0CCH,07
       76 00 
 FE1E  00 00 CC CC CC 78                 DB      000H,000H,0CCH,0CCH,0CCH,078H,030H,000H ; LC V D_76
       30 00 
-FE26  00 00 C6 D6 FE FE                 DB      000H,000H,0C6H,0D6H,0FEH,0FEH,0C6H,000H ; LC W D_77
+FE26  00 00 C6 D6 FE FE                 DB      000H,000H,0C6H,0D6H,0FEH,0FEH,06CH,000H ; LC W D_77
       6C 00 
 FE2E  00 00 C6 6C 38 6C                 DB      000H,000H,0C6H,06CH,038H,06CH,0C6H,000H ; LC X D_78
       6C 00 
@@ -11285,7 +11299,7 @@ FF0D  F859 R                            DW      OFFSET CASSETTE_IO ; INTERRUPT 1
 FF0F  13DD R                            DW      OFFSET KEYBOARD_IO ; INTERRUPT 16H
 FF11  EFD2 R                            DW      OFFSET PRINTER_IO ; INTERRUPT 17H
 FF13  0000                              DW      00000H           ; INTERRUPT 18H
-FF15  F600                              DW      0F600H           ; MUST BE INSERTED INTO TABLE LATER
+FF15                                    ;       DW      0F600H           ; MUST BE INSERTED INTO TABLE LATER
 FF17  0B1B R                            DW      OFFSET BOOT_STRAP ; INTERRUPT 19H
 FF19  1393 R                            DW      TIME_OF_DAY      ; INTERRUPT 1AH -- TIME OF DAY
 FF1B  F83C R                            DW      DUMMY_RETURN     ; INTERRUPT 1BH -- KEYBD BREAK ADDR
